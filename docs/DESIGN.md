@@ -88,7 +88,7 @@ server
 This is tree testing's *pietree*, applied to agents. One tree per job, combining every phrasing × participant × profile.
 
 ```
-"log this idea and tell me if it's worth doing"            n=48
+"log this idea and tell me if it's worth doing"            n=48   (mission, verbatim)
 ├── pm_get_state                       ▰▰▰▰▰▰▰▱▱▱ 34
 │   ├── pm_add_work_item               ▰▰▰▰▰▰▱▱▱▱ 27
 │   │   ├── pm_score_work_item         ● done 22
@@ -118,7 +118,7 @@ Each dead end records which rule fired. The **alley log** lists them all.
 
 ### 3.5 The alley log
 
-This is the table version of every amber and red leaf, the list you asked for: errors and closed alleys.
+This is the table version of every amber and red leaf: every error and closed alley, the first list a maintainer wants.
 
 | Column | Example |
 |---|---|
@@ -161,21 +161,88 @@ Every finding reports which participants it shows up in. **Panel divergence**, t
 
 Every decision's options are the visible tools **plus** `ask_user`, `answer_directly` and `stop`. Picking one of those when the job needs a tool counts as **stalled**. Picking one when the scenario says that's correct (for example, the request is ambiguous) counts as **done**. Without these options, a sensible "ask first" would be scored as a wrong turn.
 
-### 4.3 Jev in practice
+### 4.3 The prompt: a mission and nothing else
 
-Endpoint `POST https://api.typesafe.ai/v1/systemone`, auth `Authorization: Bearer $TYPESAFE_API_KEY`, model **pinned** (e.g. `jev-1.13.0`, never `jev-latest`, so runs can be reproduced). One request per step asks several questions about the same state:
+This is the most important rule in gutfeel. In a usability test the participant gets a mission ("create an account") and no help: no hints, no steps, no explanation of the interface. A moderator who explains has invalidated the session. gutfeel is the moderator, so **gutfeel says almost nothing.**
 
-| Question | Type | Criteria |
+Everything a participant sees comes from exactly one of four sources:
+
+| Source | Example | Who wrote it |
 |---|---|---|
-| `next` | `choice` | `{ tool_name: rendered description, ask_user, answer_directly, stop }` |
-| `done` | `noul` | "The job is complete given the last result" |
-| `result` | `choice` | `done · partial · failed · unclear` |
-| `triage` (after errors) | `choice` | `retry · fix_argument · switch_tool · ask_user · stop` |
-| `actionable` (after errors) | `noul` | "The error says what to do next" |
+| **The mission** | `create an account` | The user, in their words (§4.4) |
+| **Materials** | `email: ana@example.com` | Data the user would have on hand. Values only, never instructions |
+| **The server's own words** | Tool names, descriptions, schemas, `instructions`, results, errors, all **verbatim** | The server under test, because this *is* the interface |
+| **The frame** | `What do you do next?` | gutfeel. A fixed, versioned, neutral sentence, the same for every server |
+
+gutfeel never adds anything else: no "you are a helpful agent", no "choose the best tool", no summary of what happened, no hint about the job. If a participant needs help to succeed, the missing help is the finding.
+
+The state is shaped like what an agent actually receives, a transcript:
+
+```
+user: create an account
+      (email: ana@example.com)
+
+called: auth_lookup_user {"email":"ana@example.com"}
+got:    {"found": false}
+```
+
+One Jev decision per step, model pinned:
+
+```json
+POST https://api.typesafe.ai/v1/systemone
+Authorization: Bearer $TYPESAFE_API_KEY
+
+{
+  "model": "jev-1.13.0",
+  "state": "<the transcript above + the server's instructions, verbatim>",
+  "questions": {
+    "next": {
+      "type": "choice",
+      "instructions": "What do you do next?",
+      "criteria": {
+        "auth_create_user": "<that tool's description and parameters, verbatim>",
+        "auth_lookup_user": "<verbatim>",
+        "ask_user": "Ask the person something",
+        "answer_directly": "Reply without using a tool",
+        "stop": "Stop"
+      }
+    }
+  }
+}
+```
+
+**The frame is `frame@1`.** It's the instruction sentence plus the three non-tool option labels. It's the only text gutfeel writes, so it's pinned, versioned and recorded in every run. Its own influence is measured: each suite reruns under two alternative neutral frames, and if decisions move more than the noise floor, the frame is steering the participant and gets fixed before any result counts.
+
+**Evaluation probes are separate requests** (`result`, `done`, `triage`, `actionable`), never bundled with `next`. A question about whether the job is done must not sit next to the decision and hint at it.
+
+| Probe | Type | Asked after | Frame |
+|---|---|---|---|
+| `result` | `choice` | Any result | `What happened?` → `worked · partly worked · failed · can't tell` |
+| `triage` | `choice` | An error | `What do you do now?` → `try again · change what you sent · try something else · ask the person · stop` |
+| `actionable` | `noul` | An error | `This message says what to do next.` |
+
+Every walk is an independent instance: stateless calls, each carrying its own transcript, so walks run in parallel without affecting each other.
 
 Limits to design around: about 32k tokens for the state plus the longest question, 255 options, 1,200 requests per minute. A server with more tools than fit is a finding in itself, so gutfeel reports it and applies the `deferred` profile.
 
-### 4.4 Presentation profiles
+### 4.4 Missions
+
+A mission is what a user would type, and nothing more.
+
+| Rule | ✓ | ✗ |
+|---|---|---|
+| The user's words, not the product's | `dale luz verde a esta idea` (Spanish for "give this idea the green light") | `commit the work item` |
+| A goal, not steps | `create an account` | `look up the email, then create the user` |
+| No tool vocabulary | `who's on my team?` | `list members` |
+| Missing data comes in as materials | `create an account` + `email: ana@example.com` | `create an account for ana@example.com using the signup tool` |
+| Short, as typed | `invite ana` | a paragraph of background |
+
+- **Phrasings:** each job gets several missions: terse, chatty, misspelled, in more than one language. Personas are only used to *write* phrasings and are never shown to the participant.
+- **Leakage check:** a mission that shares content words with the tool names or descriptions beyond a threshold gets rejected and rewritten.
+- **Missions that should stop:** some missions are out of scope or ambiguous on purpose (`delete everything`, `fix it`). Asking or stopping there counts as **done**, and plowing ahead counts as a wrong turn.
+- **The answer stays hidden.** Acceptable paths and success checks are in the scenario file but never reach the participant.
+
+### 4.5 Presentation profiles
 
 | Profile | What the participant sees | Mirrors |
 |---|---|---|
@@ -198,7 +265,7 @@ The renderer is one function shared by every participant, so they all see exactl
 
 **The live guard.** A tool runs only if it's annotated `readOnlyHint: true`, or explicitly allowed with `--allow tool,tool`. Annotations from untrusted servers are hints, not guarantees (per the MCP spec), so the allowlist is the actual protection, and live mode prints it before starting.
 
-**Hands.** In live mode, arguments are filled in by a constrained generative model that sees the task, the history and that one tool's schema. Hands never choose the tool. When an argument is wrong, the failure is tagged `argument`, not `decision`, so participants aren't blamed for the hands' mistakes.
+**Hands.** In live mode, arguments are filled in by a constrained generative model that sees the mission, the materials, the transcript and that one tool's schema, under the same rule as the participant: nothing gutfeel didn't have to say. Hands never choose the tool. When an argument is wrong, the failure is tagged `argument`, not `decision`, so participants aren't blamed for the hands' mistakes.
 
 ---
 
@@ -210,7 +277,8 @@ All contracts are defined in `packages/core` as zod schemas, with JSON Schema ex
 |---|---|
 | `surface@1` | `server {name, version, transport, instructions}` · `tools[] {name, description, inputSchema, annotations}` · `hash` · `captured_at` |
 | `jobmap@1` | `jobs[] {id, statement (verb + object + context, no solution words), source: needed\|claimed, steps[] {ulwick_step, tools[]}}` · `uncovered[]` · `dead_tools[]` · `overlaps[]` |
-| `scenario@1` | `id, job_id, persona, context, phrasings[] {text, lang}, acceptable_paths[][] (sets per step), success {kind: path\|state, check}, should_stall?, leakage_score` |
+| `scenario@1` | `id, job_id, missions[] {text, lang, style}, materials {key: value}, acceptable_paths[][] (sets per step), success {kind: path\|state, check}, should_stall?, leakage_score` · personas live only in the authoring notes, never in what the participant sees |
+| `frame@1` | `instruction, option_labels {ask_user, answer_directly, stop}, probe_frames {…}, version` · the only text gutfeel itself shows a participant |
 | `event@1` | `run_id, walk_id, step, participant, profile, options_hash, distribution {option: p}, chosen, call? {tool, args}, result? {ok, excerpt, error?}, state: done\|wrong\|unfindable\|dead_end\|error\|stalled\|loop\|continue, rule?` |
 | `run@1` | `surface_hash, suite_hash, participants[] {id, version}, profile, mode, walks[], metrics {…, ci}, created_at` |
 | `finding@1` | `id, severity 0–4, frequency + ci, impact, job, step, walkthrough_q, evidence, participants {fails[], passes[]}, cause {span, delta_p}, fix?, verified?` |
