@@ -48,7 +48,7 @@ function W_draw() {
   const links = new Map();
   for (const w of walks) {
     const outcome = w.end ? w.end.outcome : 'running';
-    let prev = node(0, 'root', WS.focus === 'all' ? `${walks.length} walks` : WS.focus, 'root'); prev.walks.push(w);
+    let prev = node(0, 'root', WS.focus !== 'all' ? WS.focus : WS.highlight ? WS.highlight : `${walks.length} walks`, 'root'); prev.walks.push(w);
     w.steps.forEach((s, i) => {
       const n = node(i + 1, s.chosen ?? '?', s.chosen ? short(s.chosen) : 'invalid', 'tool');
       n.walks.push(w); if (s.is_error) n.err++; if (s.dead_end) n.dead++;
@@ -106,11 +106,13 @@ function W_draw() {
     const small = WS.focus === 'all' && n.h < 9 && n.kind === 'tool' && !(sel && lit);
     if (small) continue;
     const ty = n.y + Math.min(n.h, 22) / 2 + 4;
-    const t = mk('text', { x: n.x + barW + 5, y: ty, fill: !lit ? '#c4c4c0' : n.kind === 'outcome' ? OC[n.key] : '#111', 'font-size': 11, stroke: '#fafaf9', 'stroke-width': 3, 'paint-order': 'stroke', 'stroke-linejoin': 'round', style: 'cursor:pointer' }, gNode);
+    const onPath = sel && lit;
+    const t = mk('text', { x: n.x + barW + 5, y: ty, fill: !lit ? '#cfcfcb' : n.kind === 'outcome' ? OC[n.key] : '#111', 'font-size': onPath ? 11.5 : 11, 'font-weight': onPath ? 700 : 400,
+      stroke: '#fafaf9', 'stroke-width': onPath ? 4.5 : 3, 'paint-order': 'stroke', 'stroke-linejoin': 'round', style: 'cursor:pointer' }, gNode);
     t.onclick = () => W_select(n.walks, n.label);
     const lab = n.label.length > room ? n.label.slice(0, room - 1) + '…' : n.label;
     t.textContent = `${n.kind === 'outcome' ? OG[n.key] + ' ' : ''}${lab}`;
-    const extra = [sel && lit && n.kind !== 'root' ? `${litN}/${n.walks.length}` : `${n.walks.length}`];
+    const extra = [sel && lit ? `${litN}/${n.walks.length}` : `${n.walks.length}`];
     if (n.err) extra.push(`! ${n.err}`); if (n.dead) extra.push(`⊣ ${n.dead}`);
     const t2 = mk('tspan', { fill: '#9a9a96', dx: 6 }, t); t2.textContent = extra.join(' · ');
     if (WS.latest && n.kind === 'tool' && n.key === WS.latest.chosen && n.c === WS.latest.step && (WS.focus === 'all' || WS.focus === WS.latest.job)) {
@@ -139,6 +141,7 @@ function W_jobs() {
       <div style="color:#9a9a96;font-size:10.5px">${ends.length ? `${calls} calls · lostness ${L}` : `${ws.length ? 'running…' : ''}`}</div></div>`;
   };
   box.innerHTML = row('all', 'all jobs', all) + meta.jobs.map((j) => row(j.id, j.id, all.filter((w) => w.job === j.id))).join('');
+  box.querySelector(`[data-j="${CSS.escape(WS.highlight ?? '')}"]`)?.scrollIntoView({ block: 'nearest' });
   box.querySelectorAll('[data-j]').forEach((d) => d.onclick = (ev) => {
     const id = d.dataset.j;
     if (ev.target.dataset.only) { WS.focus = WS.focus === id ? 'all' : id; WS.highlight = null; }
@@ -196,7 +199,7 @@ function W_counts() {
   const T = WS.total || 1;
   $('prog').innerHTML = OUTCOMES.map((o) => `<i style="width:${(100 * (c[o] ?? 0)) / T}%;background:${OC[o]}"></i>`).join('');
   const steps = [...WS.walks.values()].reduce((a, w) => a + w.steps.length, 0);
-  const secs = t0 ? ((Date.now() - t0) / 1000).toFixed(1) : '0.0';
+  const secs = WS.endMs != null ? (WS.endMs / 1000).toFixed(1) : t0 ? ((Date.now() - t0) / 1000).toFixed(1) : '0.0';
   $('counts').innerHTML = `<span><b>${ends.length}</b> / ${WS.total || '—'} walks · ${steps} steps · ${secs}s</span>` +
     OUTCOMES.filter((o) => c[o]).map((o) => `<span><span class="g" style="color:${OC[o]}">${OG[o]}</span>${o.replace('_', ' ')} <b>${c[o]}</b></span>`).join('');
 }
@@ -242,6 +245,6 @@ function W_on(e) {
   } else if (e.type === 'walk_end') {
     let w = WS.walks.get(e.walk); if (!w) { w = { id: e.walk, job: e.job, mission: e.mission, steps: [], end: null }; WS.walks.set(e.walk, w); WS.order.push(e.walk); }
     w.end = e; W_counts(); W_metrics(); W_queue();
-  } else if (e.type === 'end') { clearInterval(timer); WS.latest = null; W_counts(); W_metrics(); W_draw(); $('start').disabled = false; }
+  } else if (e.type === 'end') { clearInterval(timer); WS.latest = null; WS.endMs = e.ms; W_counts(); W_metrics(); W_draw(); $('start').disabled = false; }
 }
 addEventListener('resize', () => { if (meta?.kind === 'walks') W_draw(); });
