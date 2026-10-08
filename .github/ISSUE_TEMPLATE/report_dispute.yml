@@ -1,0 +1,26 @@
+name: Dispute an AX report
+description: You maintain a server gutfeel reported on, and you think a finding is wrong. Disputes are handled first.
+labels: [report-dispute]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for taking the time. Every dispute gets a public answer next to the report, and corrections are published, not hidden.
+  - type: input
+    id: report
+    attributes:
+      label: Report and finding
+      description: e.g. "linear 2026-11 · F-004"
+    validations: { required: true }
+  - type: textarea
+    id: why
+    attributes:
+      label: Why the finding is wrong
+      description: Real agents succeed here? The mission is unrealistic? A defect in the participants? Evidence helps (traces, usage data, other evals).
+    validations: { required: true }
+  - type: checkboxes
+    id: role
+    attributes:
+      label: Your role
+      options:
+        - label: I maintain this server, or I'm authorized to speak for it

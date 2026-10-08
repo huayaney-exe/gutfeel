@@ -1,0 +1,28 @@
+name: Contribute missions or a suite
+description: Real requests, in real words, for an MCP server. The most valuable contribution there is.
+labels: [missions]
+body:
+  - type: input
+    id: server
+    attributes:
+      label: MCP server
+      description: Name and URL or package.
+    validations: { required: true }
+  - type: textarea
+    id: missions
+    attributes:
+      label: Missions
+      description: One per line, as a user would type it. Goals, not steps, and no tool names. Any language.
+      placeholder: |
+        create an account
+        who's on my team?
+        dale luz verde a esta idea
+    validations: { required: true }
+  - type: checkboxes
+    id: blind
+    attributes:
+      label: Method
+      options:
+        - label: I wrote these without looking at the server's tool descriptions
+          required: true
+        - label: These come from real user requests

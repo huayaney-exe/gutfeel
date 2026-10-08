@@ -1,0 +1,29 @@
+name: Bug in the harness
+description: gutfeel did something wrong. It crashed, measured incorrectly, or broke its own method.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What did you expect, and what happened instead?
+    validations: { required: true }
+  - type: input
+    id: protocol
+    attributes:
+      label: Protocol hash or run file
+      description: From the report header, or attach run.json (secrets are already removed).
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options: [surface / connection, participants, missions / script, run (dry), run (live), findings, report UI, CLI, other]
+    validations: { required: true }
+  - type: checkboxes
+    id: method
+    attributes:
+      label: Does this break the method?
+      options:
+        - label: A participant saw text that isn't the mission, the materials, the server's words or the frame
+        - label: The control servers passed when they shouldn't have, or failed when they shouldn't have
+        - label: A harness or infrastructure failure was counted as a participant failure
