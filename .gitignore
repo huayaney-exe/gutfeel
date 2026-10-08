@@ -7,3 +7,4 @@ coverage/
 .gutfeel/
 *.log
 .DS_Store
+.auth.json

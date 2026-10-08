@@ -1,0 +1,12 @@
+{
+  "name": "gutfeel",
+  "version": "0.1.0",
+  "description": "Usability testing for MCP servers. A decision model that doesn't deliberate walks your tools from a bare user mission; every path, wrong turn and dead end is mapped and auditable.",
+  "type": "module",
+  "license": "MIT",
+  "repository": "github:huayaney-exe/gutfeel",
+  "bin": { "gutfeel": "packages/cli/bin/gutfeel.ts" },
+  "files": ["packages", "integrations", "docs/AUDIT.md", "README.md", "LICENSE"],
+  "engines": { "bun": ">=1.1" },
+  "keywords": ["mcp", "model-context-protocol", "agents", "agent-experience", "usability-testing", "evals", "tool-use"]
+}
