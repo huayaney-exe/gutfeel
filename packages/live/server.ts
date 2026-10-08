@@ -83,10 +83,27 @@ Bun.serve({
       const key = body.key || envKey;
       if (mode === 'live' && !key) return Response.json({ error: 'live mode needs a Jev key (TypeSafe or OpenRouter)' }, { status: 400 });
       if (mode === 'live' && info.kind === 'walks' && body.sandbox_ack !== true) return Response.json({ error: 'walks execute every call for real. Point gutfeel at a sandbox or test environment, never at production data, and confirm it to start.' }, { status: 400 });
-      if (mode === 'live' && info.kind === 'walks' && (!mcpToken || !(handsKey || key?.startsWith('sk-or-')))) return Response.json({ error: 'walks need MCP_TOKEN for the target server and an OpenRouter key for the hands' }, { status: 400 });
+      if (mode === 'live' && info.kind === 'walks' && (!mcpToken || (run.protocol.hands?.backend !== 'claude-code' && !(handsKey || key?.startsWith('sk-or-'))))) return Response.json({ error: 'walks need MCP_TOKEN for the target server, and an OpenRouter key for the hands unless the protocol sets hands.backend = claude-code' }, { status: 400 });
       if (mode === 'replay' && !info.has_recording) return Response.json({ error: 'no recorded run in this folder' }, { status: 400 });
       start(mode, key, Math.max(10, Number(body.speed) || 90));
       return Response.json({ ok: true, mode });
+    }
+    if (url.pathname === '/walks.js') return new Response(Bun.file(`${import.meta.dir}/walks.js`), { headers: { 'content-type': 'text/javascript; charset=utf-8' } });
+    // Full trace of one walk (trace@1). Falls back to the event summary for runs recorded before traces existed.
+    const tm = url.pathname.match(/^\/api\/trace\/(\d+)$/);
+    if (tm) {
+      const id = Number(tm[1]);
+      const f = `${dir}/traces/walk-${String(id).padStart(3, '0')}.json`;
+      if (existsSync(f)) return new Response(Bun.file(f), { headers: { 'content-type': 'application/json' } });
+      const rec = `${dir}/walks.jsonl`;
+      if (!existsSync(rec)) return Response.json({ error: 'no record' }, { status: 404 });
+      const events = readFileSync(rec, 'utf8').trim().split('\n').map((l) => JSON.parse(l)).filter((e) => e.walk === id);
+      return Response.json({ $contract: 'trace@partial', note: 'This run was recorded before full traces existed: results are cut to 1,200 characters and the participant, hands and server payloads were not kept.', walk: id, events });
+    }
+    if (url.pathname.startsWith('/api/blob/')) {
+      const h = url.pathname.slice(10).replace(/[^a-f0-9]/g, '');
+      const f = `${dir}/blobs/${h}.json`;
+      return existsSync(f) ? new Response(Bun.file(f), { headers: { 'content-type': 'application/json' } }) : Response.json({ error: 'no blob' }, { status: 404 });
     }
     if (url.pathname === '/api/stop' && req.method === 'POST') { signal.stopped = true; return Response.json({ ok: true }); }
     if (url.pathname === '/api/stream') {

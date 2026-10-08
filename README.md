@@ -219,7 +219,7 @@ An AX eval is only worth anything if every run follows the same method. In gutfe
 - **Invalid isn't failed.** Timeouts, rate limits and harness errors never count against your server. Above 5% invalid walks, the whole run is invalid.
 - **Reproducible.** Every input is hashed into the run, and `gutfeel replay` reproduces a run decision by decision.
 
-Read the full [method](docs/DESIGN.md#0-method-the-protocol-is-the-product).
+Read the full [method](docs/DESIGN.md#0-method-the-protocol-is-the-product). Every walk is recorded in full (what the participant saw, what it answered, what the hands sent, what the server returned) so a person or a more capable agent can audit any path: see [AUDIT.md](docs/AUDIT.md).
 
 ---
 

@@ -341,6 +341,8 @@ The renderer is one function shared by every participant, so they all see exactl
 
 **Context budget.** A participant's window holds the tool surface, the server instructions and the transcript. When the surface alone nearly fills it, walks run out of room after a few steps. That's reported as a finding about the surface (its size), not as a participant failure; overflowing steps are marked `invalid`.
 
+**Hands backends.** `openrouter` calls an API model per argument fill. `claude-code` runs the operator's local `claude` CLI on their own subscription, fully isolated: no settings, no CLAUDE.md, no tools, no MCP servers, a fixed system prompt, and structured output constrained to the chosen tool's input schema. Isolation is required, not optional: without it the CLI loads the operator's whole context (about 60k tokens in a measured case) and that context would leak into the arguments. The aim is to shrink the hands over time: enumerable arguments (enums, identifiers that already appear in the transcript, values from the materials) can be chosen by the participant itself, leaving a generative model only for free text.
+
 **Hands.** In live mode, arguments are filled in by a constrained generative model that sees the mission, the materials, the transcript and that one tool's schema, under the same rule as the participant: nothing gutfeel didn't have to say. Hands never choose the tool. When an argument is wrong, the failure is tagged `argument`, not `decision`, so participants aren't blamed for the hands' mistakes.
 
 ---
@@ -354,6 +356,7 @@ All contracts are defined in `packages/core` as zod schemas, with JSON Schema ex
 | `surface@1` | `server {name, version, transport, instructions}` · `tools[] {name, description, inputSchema, annotations}` · `hash` · `captured_at` |
 | `jobmap@1` | `jobs[] {id, statement (verb + object + context, no solution words), source: needed\|claimed, steps[] {ulwick_step, tools[]}}` · `uncovered[]` · `dead_tools[]` · `overlaps[]` |
 | `scenario@1` | `id, job_id, missions[] {text, lang, style}, materials {key: value}, acceptable_paths[][] (sets per step), success {kind: path\|state, check}, should_stall?, leakage_score` · personas live only in the authoring notes, never in what the participant sees |
+| `trace@1` | `protocol_hash, walk, job, mission, materials, goal, R, outcome, path, metrics, steps[] {jev, hands?, mcp? : {endpoint, request, status, response, ms, attempts}, chosen, executed, goal_hit, is_error, dead_end, note}` · the full record of one walk; repeated payloads stored once in `blobs/<sha256>.json`; no keys or tokens · how to audit: [AUDIT.md](AUDIT.md) |
 | `protocol@1` | `question, surface_hash, suite_hash, frame, participants[] {id, version}, profiles, mode, samples, analysis_plan, exclusion_rules, live_allowlist, frozen_at, hash` · required for `test` |
 | `frame@1` | `instruction, option_labels {ask_user, answer_directly, stop}, probe_frames {…}, version` · the only text gutfeel itself shows a participant |
 | `event@1` | `run_id, walk_id, step, participant, profile, options_hash, distribution {option: p}, chosen, call? {tool, args}, result? {ok, excerpt, error?}, state: done\|wrong\|unfindable\|dead_end\|error\|stalled\|loop\|continue, rule?` |
