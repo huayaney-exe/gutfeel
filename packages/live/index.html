@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>gutfeel live</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --bg: #fafaf9; --panel: #ffffff; --ink: #111; --muted: #6b6b6b; --faint: #b9b9b5; --line: #e3e3e1;
+    --done: #1a7f37; --wrong: #cf222e; --stall: #8c8c8c; --amber: #b26b00;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 12px/1.45 var(--mono); }
+  button, input, select { font: inherit; }
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 20px; border-bottom: 1px solid var(--ink); }
+  .brand b { font-size: 14px; letter-spacing: -0.02em; }
+  .brand span { color: var(--muted); }
+  .controls { display: flex; align-items: center; gap: 8px; }
+  .seg { display: inline-flex; border: 1px solid var(--ink); }
+  .seg button { border: 0; background: transparent; padding: 5px 10px; cursor: pointer; }
+  .seg button.on { background: var(--ink); color: #fff; }
+  input[type=password] { border: 1px solid var(--line); background: #fff; padding: 5px 8px; width: 230px; }
+  select { border: 1px solid var(--line); background: #fff; padding: 4px 6px; }
+  .go { background: var(--ink); color: #fff; border: 1px solid var(--ink); padding: 5px 14px; cursor: pointer; }
+  .go:disabled { opacity: .35; cursor: default; }
+  .ghost { background: transparent; border: 1px solid var(--line); padding: 5px 10px; cursor: pointer; }
+  .strip { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 16px; padding: 10px 20px; border-bottom: 1px solid var(--line); }
+  .prog { height: 6px; background: var(--line); display: flex; overflow: hidden; }
+  .prog i { display: block; height: 100%; transition: width .2s; }
+  .counts { display: flex; gap: 16px; color: var(--muted); white-space: nowrap; }
+  .counts b { color: var(--ink); font-weight: 600; }
+  .g { font-weight: 700; display: inline-block; width: 1.1em; text-align: center; }
+  .done { color: var(--done); } .wrong { color: var(--wrong); } .unfindable { color: var(--wrong); } .stalled { color: var(--stall); } .invalid { color: var(--amber); }
+  .tabs { display: flex; gap: 0; padding: 0 20px; border-bottom: 1px solid var(--line); }
+  .tabs button { border: 0; border-bottom: 2px solid transparent; background: none; padding: 9px 12px 7px; cursor: pointer; color: var(--muted); }
+  .tabs button.on { color: var(--ink); border-bottom-color: var(--ink); }
+  .main { display: grid; grid-template-columns: 1fr 400px; height: calc(100% - 136px); }
+  .graph { overflow: auto; position: relative; }
+  svg text { font-family: var(--mono); font-size: inherit; }
+  .side { border-left: 1px solid var(--line); background: var(--panel); display: flex; flex-direction: column; min-height: 0; }
+  .now { padding: 18px 20px; border-bottom: 1px solid var(--line); min-height: 300px; }
+  .now .tag { color: var(--muted); font-size: 11px; }
+  .now .mission { font-size: 17px; line-height: 1.35; margin: 10px 0 16px; min-height: 46px; font-family: -apple-system, "Inter", sans-serif; }
+  .bars .b { display: grid; grid-template-columns: 1fr 120px 44px; align-items: center; gap: 8px; padding: 3px 0; }
+  .bars .b .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bars .b .track { height: 6px; background: var(--line); }
+  .bars .b .fill { height: 100%; background: var(--faint); transition: width .35s ease-out; }
+  .bars .b.chosen .t { font-weight: 700; }
+  .bars .b.chosen .fill { background: var(--ink); }
+  .verdict { margin-top: 12px; font-weight: 700; min-height: 18px; }
+  .feed { overflow: auto; padding: 8px 0; flex: 1; }
+  .feed .r { display: grid; grid-template-columns: 18px 1fr auto; gap: 6px; padding: 3px 20px; animation: in .35s ease-out; }
+  .feed .r .m { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+  @keyframes in { from { background: #f1f1ee; } to { background: transparent; } }
+  .empty { color: var(--muted); padding: 40px 24px; }
+  .summary { padding: 16px 20px; border-top: 1px solid var(--line); display: none; }
+  .summary.on { display: block; }
+  .summary h4 { margin: 0 0 8px; font-size: 12px; }
+  .summary .row { display: flex; justify-content: space-between; padding: 2px 0; }
+  .err { color: var(--wrong); }
+</style>
+</head>
+<body>
+<div class="top">
+  <div class="brand"><b>gutfeel live</b> <span id="title">loading…</span></div>
+  <div class="controls">
+    <div class="seg"><button data-mode="replay" class="on">replay</button><button data-mode="live">live · Jev</button></div>
+    <input id="key" type="password" placeholder="Jev key · TypeSafe or OpenRouter" autocomplete="off" style="display:none">
+    <select id="speed"><option value="35">fast</option><option value="90" selected>normal</option><option value="220">slow</option></select>
+    <button class="go" id="start">▶ play</button>
+    <button class="ghost" id="stop">stop</button>
+  </div>
+</div>
+<div class="strip">
+  <div class="prog" id="prog"></div>
+  <div class="counts" id="counts"></div>
+</div>
+<div class="tabs" id="tabs"></div>
+<div class="main">
+  <div class="graph" id="graphWrap"><svg id="graph"></svg></div>
+  <div class="side">
+    <div class="now" id="now"><div class="empty">Press <b>▶ play</b>. Each mission goes to Jev with nothing but the user's words and the server's own tools. Watch where it goes.</div></div>
+    <div class="feed" id="feed"></div>
+    <div class="summary" id="summary"></div>
+  </div>
+</div>
+<script>
+const $ = (id) => document.getElementById(id);
+const NS = 'http://www.w3.org/2000/svg';
+const COLOR = { done: '#1a7f37', wrong: '#cf222e', unfindable: '#cf222e', stalled: '#8c8c8c', invalid: '#b26b00' };
+const GLYPH = { done: '●', wrong: '✕', unfindable: '○', stalled: '‖', invalid: '?' };
+const LABEL = { upfront: 'all tools visible', deferred: 'search · top 5 visible' };
+const VERDICTS = ['done', 'wrong', 'unfindable', 'stalled', 'invalid'];
+let meta, mode = 'replay', view = 'upfront', decisions = [], total = 0, t0 = 0, timer;
+
+const el = (tag, attrs = {}, parent) => { const e = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); if (parent) parent.appendChild(e); return e; };
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+// ── layout: server → jobs → every tool on the map from the start ──
+let G = {};
+function layout() {
+  const svg = $('graph'); svg.innerHTML = '';
+  const wrap = $('graphWrap');
+  const W = Math.max(wrap.clientWidth, 900);
+  const toolRows = [...meta.nontool.map((n) => ({ name: n, nontool: true })), { gap: true }, ...meta.tools];
+  const top = 22;
+  const rowH = Math.max(11, Math.min(17, (wrap.clientHeight - top * 2) / toolRows.length));
+  const H = Math.max(top * 2 + toolRows.length * rowH, wrap.clientHeight - 4);
+  svg.style.fontSize = rowH < 14 ? '10px' : '11px';
+  svg.setAttribute('width', W); svg.setAttribute('height', H);
+  const xRoot = 34, xJob = 250, xTool = W - 300;
+  const gEdges = el('g', {}, svg), gStatic = el('g', {}, svg), gPulse = el('g', {}, svg), gNodes = el('g', {}, svg);
+  const rootY = H / 2;
+  el('circle', { cx: xRoot, cy: rootY, r: 5, fill: '#111' }, gNodes);
+  el('text', { x: xRoot - 8, y: rootY - 12, fill: '#111', 'font-weight': 700 }, gNodes).textContent = `${meta.server}`;
+  const jobs = {}, tools = {};
+  const jStep = (H - top * 2) / Math.max(meta.jobs.length - 1, 1);
+  meta.jobs.forEach((j, i) => {
+    const y = top + i * jStep;
+    el('path', { d: `M${xRoot},${rootY} C${(xRoot + xJob) / 2},${rootY} ${(xRoot + xJob) / 2},${y} ${xJob},${y}`, stroke: '#e3e3e1', fill: 'none' }, gStatic);
+    el('circle', { cx: xJob, cy: y, r: 3.5, fill: '#fff', stroke: '#111' }, gNodes);
+    const t = el('text', { x: xJob - 10, y: y + 4, 'text-anchor': 'end', fill: '#111' }, gNodes); t.textContent = j.id;
+    const s = el('text', { x: xJob - 10, y: y + 15, 'text-anchor': 'end', fill: '#9a9a96', 'font-size': 10 }, gNodes);
+    jobs[j.id] = { x: xJob, y, score: s };
+  });
+  let y = top;
+  for (const r of toolRows) {
+    if (r.gap) { y += rowH * 0.6; continue; }
+    const dot = el('circle', { cx: xTool, cy: y, r: 2.5, fill: '#d4d4d0' }, gNodes);
+    const label = el('text', { x: xTool + 10, y: y + 4, fill: r.nontool ? '#6b6b6b' : '#b9b9b5', 'text-decoration': r.dead ? 'line-through' : 'none', 'font-style': r.nontool ? 'italic' : 'normal' }, gNodes);
+    label.textContent = r.nontool ? r.name.replace('_', ' ') : r.name;
+    const count = el('text', { x: W - 18, y: y + 4, 'text-anchor': 'end', fill: '#9a9a96' }, gNodes);
+    tools[r.name] = { x: xTool, y, dot, label, count, n: 0, dead: r.dead, nontool: r.nontool };
+    y += rowH;
+  }
+  G = { svg, gEdges, gPulse, jobs, tools, edges: {} };
+  redraw();
+}
+
+// ── state of the current view, recomputed from all decisions ──
+function viewDecisions() { return decisions.filter((d) => d.profile === view); }
+
+function redraw() {
+  if (!G.svg) return;
+  G.gEdges.innerHTML = ''; G.edges = {};
+  for (const t of Object.values(G.tools)) { t.n = 0; t.dot.setAttribute('r', 2.5); t.dot.setAttribute('fill', '#d4d4d0'); t.label.setAttribute('fill', t.nontool ? '#6b6b6b' : '#b9b9b5'); t.count.textContent = ''; }
+  const perJob = {};
+  for (const d of viewDecisions()) { addEdge(d, false); (perJob[d.job] ??= []).push(d); }
+  for (const [id, j] of Object.entries(G.jobs)) {
+    const ds = perJob[id] ?? [];
+    j.score.textContent = ds.length ? `${ds.filter((d) => d.verdict === 'done').length}/${ds.length} right` : '';
+  }
+  counts();
+}
+
+function edgeFor(d) {
+  const key = `${d.job}→${d.chosen}`;
+  let e = G.edges[key];
+  const J = G.jobs[d.job], T = G.tools[d.chosen];
+  if (!J || !T) return null;
+  if (!e) {
+    const path = el('path', { d: `M${J.x},${J.y} C${(J.x + T.x) / 2},${J.y} ${(J.x + T.x) / 2},${T.y} ${T.x},${T.y}`, fill: 'none', 'stroke-linecap': 'round' }, G.gEdges);
+    e = G.edges[key] = { path, n: 0, by: {} };
+  }
+  return e;
+}
+
+function addEdge(d, animate) {
+  if (!d.chosen) return;
+  const e = edgeFor(d); if (!e) return;
+  e.n++; e.by[d.verdict] = (e.by[d.verdict] ?? 0) + 1;
+  const main = Object.entries(e.by).sort((a, b) => b[1] - a[1])[0][0];
+  e.path.setAttribute('stroke', COLOR[main]);
+  e.path.setAttribute('stroke-opacity', 0.55);
+  e.path.setAttribute('stroke-width', 0.8 + Math.sqrt(e.n) * 1.1);
+  e.path.setAttribute('stroke-dasharray', main === 'unfindable' ? '3 4' : 'none');
+  const T = G.tools[d.chosen];
+  T.n++;
+  T.dot.setAttribute('r', Math.min(2.5 + Math.sqrt(T.n) * 1.6, 11));
+  T.dot.setAttribute('fill', '#111');
+  T.label.setAttribute('fill', '#111');
+  T.count.textContent = T.n;
+  if (animate) pulse(e.path, d.verdict, T);
+}
+
+function pulse(path, verdict, T) {
+  const len = path.getTotalLength();
+  const c = el('circle', { r: 4, fill: COLOR[verdict] }, G.gPulse);
+  const start = performance.now(), dur = 650;
+  const step = (now) => {
+    const k = Math.min((now - start) / dur, 1), e = 1 - Math.pow(1 - k, 3);
+    const p = path.getPointAtLength(e * len);
+    c.setAttribute('cx', p.x); c.setAttribute('cy', p.y);
+    if (k < 1) requestAnimationFrame(step);
+    else {
+      c.remove();
+      const ring = el('circle', { cx: T.x, cy: T.y, r: 4, fill: 'none', stroke: COLOR[verdict], 'stroke-width': 2 }, G.gPulse);
+      const s2 = performance.now();
+      const grow = (n) => { const q = Math.min((n - s2) / 500, 1); ring.setAttribute('r', 4 + q * 14); ring.setAttribute('stroke-opacity', 1 - q); if (q < 1) requestAnimationFrame(grow); else ring.remove(); };
+      requestAnimationFrame(grow);
+    }
+  };
+  requestAnimationFrame(step);
+}
+
+function counts() {
+  const ds = viewDecisions();
+  const c = Object.fromEntries(VERDICTS.map((v) => [v, ds.filter((d) => d.verdict === v).length]));
+  const all = decisions.length;
+  $('prog').innerHTML = total ? VERDICTS.map((v) => `<i style="width:${(100 * decisions.filter((d) => d.verdict === v).length) / total}%;background:${COLOR[v]}"></i>`).join('') : '';
+  const secs = t0 ? ((Date.now() - t0) / 1000).toFixed(1) : '0.0';
+  $('counts').innerHTML = `<span><b>${all}</b> / ${total || '—'} decisions · ${secs}s</span>` +
+    VERDICTS.filter((v) => v !== 'invalid' || c.invalid).map((v) => `<span><span class="g ${v}">${GLYPH[v]}</span>${v} <b>${c[v]}</b></span>`).join('');
+}
+
+function showNow(d) {
+  const glyph = `<span class="g ${d.verdict}">${GLYPH[d.verdict]}</span>`;
+  const bars = d.top.length ? d.top.map(([t, p]) => `<div class="b ${t === d.chosen ? 'chosen' : ''}"><span class="t">${esc(t.replace(/^(ask_user|answer_directly|stop)$/, (m) => m.replace('_', ' ')))}</span><span class="track"><span class="fill" style="width:0%" data-w="${(p * 100).toFixed(1)}"></span></span><span>${p.toFixed(2)}</span></div>`).join('') : `<div class="err">${esc(JSON.stringify(d.reason ?? 'invalid'))}</div>`;
+  $('now').innerHTML = `<div class="tag">${esc(d.job)} · ${LABEL[d.profile]} · rep ${d.rep}${d.model ? ' · ' + esc(d.model) : ''}</div>
+    <div class="mission">“${esc(d.mission)}”</div><div class="bars">${bars}</div>
+    <div class="verdict ${d.verdict}">${glyph} ${d.verdict === 'done' ? 'right first step' : d.verdict === 'wrong' ? 'wrong turn' : d.verdict === 'unfindable' ? 'the right tool was never visible' : d.verdict === 'stalled' ? 'stalled instead of acting' : 'invalid call'}</div>`;
+  requestAnimationFrame(() => document.querySelectorAll('.fill').forEach((f) => f.style.width = f.dataset.w + '%'));
+  const r = document.createElement('div'); r.className = 'r';
+  r.innerHTML = `<span class="g ${d.verdict}">${GLYPH[d.verdict]}</span><span class="m">${esc(d.mission)}</span><span>${esc(d.chosen ?? '—')}</span>`;
+  $('feed').prepend(r);
+  while ($('feed').children.length > 60) $('feed').lastChild.remove();
+}
+
+function summary(status, ms) {
+  const rows = meta.profiles.map((p) => {
+    const ds = decisions.filter((d) => d.profile === p && d.verdict !== 'invalid');
+    const right = ds.filter((d) => d.verdict === 'done').length;
+    return `<div class="row"><span>${LABEL[p]}</span><span><b>${ds.length ? Math.round((100 * right) / ds.length) : 0}%</b> right (${right}/${ds.length})</span></div>`;
+  }).join('');
+  const pairs = {}; for (const d of decisions) (pairs[`${d.job}|${d.mission_idx}|${d.profile}`] ??= []).push(d.chosen);
+  const twice = Object.values(pairs).filter((v) => v.length > 1); const same = twice.filter((v) => v.every((x) => x === v[0])).length;
+  $('summary').innerHTML = `<h4>${status} · ${(ms / 1000).toFixed(1)}s</h4>${rows}${twice.length ? `<div class="row"><span>same answer twice</span><span><b>${Math.round((100 * same) / twice.length)}%</b> (${same}/${twice.length})</span></div>` : ''}`;
+  $('summary').classList.add('on');
+}
+
+// ── wiring ──
+function setTabs() {
+  $('tabs').innerHTML = meta.profiles.map((p) => `<button data-p="${p}" class="${p === view ? 'on' : ''}">${LABEL[p]}</button>`).join('');
+  $('tabs').querySelectorAll('button').forEach((b) => b.onclick = () => { view = b.dataset.p; setTabs(); redraw(); });
+}
+document.querySelectorAll('.seg button').forEach((b) => b.onclick = () => {
+  mode = b.dataset.mode; document.querySelectorAll('.seg button').forEach((x) => x.classList.toggle('on', x === b));
+  if ($('key').tagName === 'INPUT' || mode === 'live') $('key').style.display = mode === 'live' ? '' : 'none'; $('speed').style.display = mode === 'replay' ? '' : 'none';
+});
+$('start').onclick = async () => {
+  const body = { mode, key: mode === 'live' && $('key').tagName === 'INPUT' ? $('key').value.trim() : undefined, speed: Number($('speed').value) };
+  const r = await fetch('/api/start', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  const j = await r.json();
+  if (!r.ok) { $('now').innerHTML = `<div class="empty err">${esc(j.error)}</div>`; return; }
+  if ($('key').tagName === 'INPUT') $('key').value = '';
+};
+$('stop').onclick = () => fetch('/api/stop', { method: 'POST' });
+
+function listen() {
+  const es = new EventSource('/api/stream');
+  es.onmessage = (m) => {
+    const e = JSON.parse(m.data);
+    if (e.type === 'start') {
+      decisions = []; total = e.total; t0 = e.at; $('feed').innerHTML = ''; $('summary').classList.remove('on');
+      $('start').disabled = true; redraw(); clearInterval(timer); timer = setInterval(counts, 200);
+    } else if (e.type === 'decision') {
+      decisions.push(e);
+      if (e.profile === view) addEdge(e, true);
+      const J = G.jobs[e.job]; if (J && e.profile === view) { const ds = viewDecisions().filter((d) => d.job === e.job); J.score.textContent = `${ds.filter((d) => d.verdict === 'done').length}/${ds.length} right`; }
+      showNow(e); counts();
+    } else if (e.type === 'end') {
+      clearInterval(timer); counts(); $('start').disabled = false; summary(e.status, e.ms);
+    }
+  };
+}
+
+(async () => {
+  meta = await (await fetch('/api/meta')).json();
+  $('title').textContent = `· ${meta.server}@${meta.version} · ${meta.tool_count} tools · ${meta.jobs.length} jobs · ${meta.frame} · protocol ${String(meta.protocol).slice(0, 12)}`;
+  if (meta.key_from_env || !meta.has_recording) document.querySelector('[data-mode=live]').click();
+  if (meta.key_from_env) { $('key').replaceWith(Object.assign(document.createElement('span'), { id: 'key', textContent: 'Jev key ✓ from environment', style: 'color:#1a7f37' })); }
+  view = meta.profiles[0]; setTabs(); layout(); counts(); listen();
+  addEventListener('resize', () => { layout(); });
+})();
+</script>
+</body>
+</html>

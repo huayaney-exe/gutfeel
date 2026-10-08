@@ -1,0 +1,11 @@
+{
+  "name": "@gutfeel/live",
+  "version": "0.0.0",
+  "private": true,
+  "description": "A localhost window onto a gutfeel run: start it, watch the participant walk the tools.",
+  "type": "module",
+  "scripts": {
+    "start": "bun server.ts"
+  },
+  "engines": { "bun": ">=1.1" }
+}
