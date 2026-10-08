@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/assets/banner-dark.svg">
-    <img alt="gutfeel: AX vibe checks for MCP servers, measured" src="docs/assets/banner-light.svg" width="100%">
+    <img alt="gutfeel: usability testing for MCP servers" src="docs/assets/banner-light.svg" width="100%">
   </picture>
 </p>
 
@@ -29,8 +29,8 @@
 What you get is a tree of every path they took: where they found the right tool, took a wrong turn, hit a dead end, got an error, stalled or looped. For each failure it shows the sentence in your descriptions that caused it, and it tests your fix before you ship it.
 
 <p align="center">
-  <img alt="gutfeel report: map tree, walk trees, alley log" src="docs/mockups/report.png" width="100%">
-  <br><sub><b>Design mockup.</b> The tool names are Praxis's real <code>tools/list</code>. Every number and outcome is illustrative, not measured.</sub>
+  <img alt="gutfeel live: 76 real walks through an MCP server, one job highlighted" src="docs/assets/live.png" width="100%">
+  <br><sub><b>A real run.</b> Pilot 002 on Praxis, an MCP server built by Prisma: 76 walks, every call executed in a disposable test tenant. The job <i>catch up on the team</i> is selected: green paths reached the goal, amber ones looped paging through history. Pilot data, not findings: the validation experiments haven't run yet.</sub>
 </p>
 
 > [!IMPORTANT]
@@ -225,7 +225,7 @@ Read the full [method](docs/DESIGN.md#0-method-the-protocol-is-the-product). Eve
 
 ## How we know it works
 
-A measurement nobody has validated is a vibe with a number on it. Before any public report, gutfeel has to pass these experiments, and we publish the results whichever way they go:
+A measurement nobody has validated is a guess with a number on it. Before any public report, gutfeel has to pass these experiments, and we publish the results whichever way they go:
 
 | | Question | Passes if |
 |---|---|---|
@@ -301,7 +301,7 @@ MCP comes first. The core reads a tool list, so OpenAI function calling and agen
 
 <details><summary><b>Why "gutfeel"?</b></summary>
 
-Because the test is your server's first impression on an agent that goes with its gut. And "AX vibe check" deserved an instrument behind it.
+Because the test is your server's first impression on an agent that goes with its gut.
 </details>
 
 ---

@@ -82,7 +82,7 @@ Sources are as the reviewers reported them. **Verify each one before citing it i
 |---|---|---|
 | Headline number | Ecosystem: "% reasoning-dependent" as the badge. Skeptic: confounded. Anthropic: rename it "proxy agreement". | Report it as **panel divergence**, per decision, with the caveat stated. It becomes the badge only if experiment E1 passes. |
 | Praxis on the public reports | Skeptic: exclude it. Ecosystem: report it first, publicly. | Report it first, with no ranking. **Luis decides**, since publishing exposes tool descriptions (anti-distillation rule). Note that any MCP client can already read them. |
-| Buzzwords | Skeptic: cut AX, vibe-check, System 1. Ecosystem: AX and System 1 land; JTBD doesn't. | Keep AX and "vibe-checking" in the hook. Rigor goes in the Validation section. JTBD becomes "task scenarios". Drop "five-second test" and letter grades. |
+| Buzzwords | Skeptic: cut AX, vibe-check, System 1. Ecosystem: AX and System 1 land; JTBD doesn't. | Superseded 2026-10-08: "vibe check" was dropped from the vocabulary as unprofessional; the hook is "Usability testing for MCP servers." Originally: keep AX and "vibe-checking" in the hook. Rigor goes in the Validation section. JTBD becomes "task scenarios". Drop "five-second test" and letter grades. |
 
 ## Experiments that must pass before launch
 

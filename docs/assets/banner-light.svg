@@ -1,9 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="320" viewBox="0 0 1280 320" role="img" aria-label="gutfeel: AX vibe checks for MCP servers, measured">
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="320" viewBox="0 0 1280 320" role="img" aria-label="gutfeel: usability testing for MCP servers">
   <rect width="1280" height="320" fill="#fafaf9"/>
   <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">
     <text x="72" y="148" font-size="78" font-weight="700" fill="#111111" letter-spacing="-2">gutfeel</text>
-    <text x="76" y="196" font-size="22" fill="#111111">AX vibe checks for MCP servers, measured.</text>
-    <text x="76" y="232" font-size="15" fill="#6b6b6b">usability testing for agents · a mission, no hints · every wrong turn mapped</text>
+    <text x="76" y="196" font-size="22" fill="#111111">Usability testing for MCP servers.</text>
+    <text x="76" y="232" font-size="15" fill="#6b6b6b">agent experience · a mission, no hints · every path an agent takes, mapped</text>
   </g>
   <g transform="translate(40 0)" fill="none" stroke="#cfcfcb" stroke-width="1.5">
     <path d="M772 92 V256"/>

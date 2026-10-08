@@ -12,7 +12,7 @@ const NS2 = 'http://www.w3.org/2000/svg';
 const mk = (tag, attrs = {}, parent) => { const e = document.createElementNS(NS2, tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); if (parent) parent.appendChild(e); return e; };
 const short = (t) => (t === 'ask_user' ? 'ask the person' : t === 'answer_directly' ? 'reply, no tool' : t === 'stop' ? 'stop' : t.replace(/^pm_/, ''));
 
-let WS = { walks: new Map(), order: [], total: 0, focus: 'all', selected: null, latest: null };
+let WS = { walks: new Map(), order: [], total: 0, focus: 'all', highlight: null, selected: null, latest: null };
 let drawQueued = false;
 
 function W_init() {
@@ -86,29 +86,31 @@ function W_draw() {
   for (const [n, ls] of byA) { ls.sort((p, q) => p.b.y - q.b.y || OUTCOMES.indexOf(p.outcome) - OUTCOMES.indexOf(q.outcome)); let y = n.y; for (const l of ls) { l.y0 = y; y += l.walks.length * unit; } }
   for (const [n, ls] of byB) { ls.sort((p, q) => p.a.y - q.a.y || OUTCOMES.indexOf(p.outcome) - OUTCOMES.indexOf(q.outcome)); let y = n.y; for (const l of ls) { l.y1 = y; y += l.walks.length * unit; } }
   const gRib = mk('g', {}, svg), gNode = mk('g', {}, svg);
-  const sel = WS.selected;
+  const sel = WS.selected ?? (WS.highlight ? new Set(walks.filter((w) => w.job === WS.highlight).map((w) => w.id)) : null);
   for (const l of L) {
     const h = l.walks.length * unit, x0 = l.a.x + barW, x1 = l.b.x, mx = (x0 + x1) / 2;
     const d = `M${x0},${l.y0} C${mx},${l.y0} ${mx},${l.y1} ${x1},${l.y1} L${x1},${l.y1 + h} C${mx},${l.y1 + h} ${mx},${l.y0 + h} ${x0},${l.y0 + h} Z`;
     const on = !sel || l.walks.some((w) => sel.has(w.id));
-    const p = mk('path', { d, fill: OC[l.outcome], 'fill-opacity': on ? 0.42 : 0.08, stroke: 'none', style: 'cursor:pointer' }, gRib);
+    const p = mk('path', { d, fill: OC[l.outcome], 'fill-opacity': on ? (sel ? 0.62 : 0.42) : 0.05, stroke: 'none', style: 'cursor:pointer' }, gRib);
     mk('title', {}, p).textContent = `${l.a.label} → ${l.b.label} · ${l.walks.length} walk${l.walks.length > 1 ? 's' : ''} · ${OL[l.outcome]}`;
     p.onclick = () => W_select(l.walks, `${l.a.label} → ${l.b.label}`);
   }
   for (const m of cols) for (const n of m.values()) {
-    const fill = n.kind === 'outcome' ? OC[n.key] : '#111';
+    const lit = !sel || n.kind === 'root' || n.walks.some((w) => sel.has(w.id));
+    const litN = sel ? n.walks.filter((w) => sel.has(w.id)).length : n.walks.length;
+    const fill = !lit ? '#dcdcd8' : n.kind === 'outcome' ? OC[n.key] : '#111';
     const r = mk('rect', { x: n.x, y: n.y, width: barW, height: n.h, fill, style: 'cursor:pointer' }, gNode);
     r.onclick = () => W_select(n.walks, n.label);
     mk('title', {}, r).textContent = `${n.label} · ${n.walks.length}`;
     const room = n.kind === 'tool' ? Math.max(8, Math.floor((colGap - barW - 34) / 6.6)) : 999;
-    const small = WS.focus === 'all' && n.h < 9 && n.kind === 'tool';
+    const small = WS.focus === 'all' && n.h < 9 && n.kind === 'tool' && !(sel && lit);
     if (small) continue;
     const ty = n.y + Math.min(n.h, 22) / 2 + 4;
-    const t = mk('text', { x: n.x + barW + 5, y: ty, fill: n.kind === 'outcome' ? OC[n.key] : '#111', 'font-size': 11, stroke: '#fafaf9', 'stroke-width': 3, 'paint-order': 'stroke', 'stroke-linejoin': 'round', style: 'cursor:pointer' }, gNode);
+    const t = mk('text', { x: n.x + barW + 5, y: ty, fill: !lit ? '#c4c4c0' : n.kind === 'outcome' ? OC[n.key] : '#111', 'font-size': 11, stroke: '#fafaf9', 'stroke-width': 3, 'paint-order': 'stroke', 'stroke-linejoin': 'round', style: 'cursor:pointer' }, gNode);
     t.onclick = () => W_select(n.walks, n.label);
     const lab = n.label.length > room ? n.label.slice(0, room - 1) + '…' : n.label;
     t.textContent = `${n.kind === 'outcome' ? OG[n.key] + ' ' : ''}${lab}`;
-    const extra = [`${n.walks.length}`];
+    const extra = [sel && lit && n.kind !== 'root' ? `${litN}/${n.walks.length}` : `${n.walks.length}`];
     if (n.err) extra.push(`! ${n.err}`); if (n.dead) extra.push(`⊣ ${n.dead}`);
     const t2 = mk('tspan', { fill: '#9a9a96', dx: 6 }, t); t2.textContent = extra.join(' · ');
     if (WS.latest && n.kind === 'tool' && n.key === WS.latest.chosen && n.c === WS.latest.step && (WS.focus === 'all' || WS.focus === WS.latest.job)) {
@@ -131,16 +133,29 @@ function W_jobs() {
     const calls = ends.length ? (ends.reduce((a, w) => a + w.end.S, 0) / ends.length).toFixed(1) : '—';
     const lost = ends.filter((w) => w.end.lostness != null); const L = lost.length ? (lost.reduce((a, w) => a + w.end.lostness, 0) / lost.length).toFixed(2) : '—';
     const bar = OUTCOMES.map((o) => { const n = ends.filter((w) => w.end.outcome === o).length; return n ? `<i style="display:inline-block;height:4px;width:${(100 * n) / Math.max(ws.length, 1)}%;background:${OC[o]}"></i>` : ''; }).join('');
-    return `<div data-j="${esc(id)}" style="padding:6px 14px;cursor:pointer;${WS.focus === id ? 'background:#f1f1ee;' : ''}">
-      <div style="display:flex;justify-content:space-between"><b style="font-weight:${WS.focus === id ? 700 : 500}">${esc(label)}</b><span style="color:#6b6b6b">${ends.length ? `${ok}/${ends.length}` : ''}</span></div>
+    return `<div data-j="${esc(id)}" style="padding:6px 14px;cursor:pointer;${WS.highlight === id || (WS.focus === id && id !== 'all') ? 'background:#f1f1ee;box-shadow:inset 3px 0 0 #111;' : ''}">
+      <div style="display:flex;justify-content:space-between;gap:6px"><b style="font-weight:${WS.focus === id || WS.highlight === id ? 700 : 500}">${WS.highlight === id ? '▸ ' : ''}${esc(label)}</b><span style="color:#6b6b6b">${ends.length ? `${ok}/${ends.length}` : ''}${id !== 'all' ? ` <span data-only="${esc(id)}" title="show only this job" style="color:${WS.focus === id ? '#111' : '#b9b9b5'};margin-left:6px">only</span>` : ''}</span></div>
       <div style="display:flex;background:#ececea;margin:4px 0 3px">${bar}</div>
       <div style="color:#9a9a96;font-size:10.5px">${ends.length ? `${calls} calls · lostness ${L}` : `${ws.length ? 'running…' : ''}`}</div></div>`;
   };
   box.innerHTML = row('all', 'all jobs', all) + meta.jobs.map((j) => row(j.id, j.id, all.filter((w) => w.job === j.id))).join('');
-  box.querySelectorAll('[data-j]').forEach((d) => d.onclick = () => { WS.focus = d.dataset.j; WS.selected = null; W_draw(); W_metrics(); });
+  box.querySelectorAll('[data-j]').forEach((d) => d.onclick = (ev) => {
+    const id = d.dataset.j;
+    if (ev.target.dataset.only) { WS.focus = WS.focus === id ? 'all' : id; WS.highlight = null; }
+    else if (id === 'all') { WS.focus = 'all'; WS.highlight = null; }
+    else { WS.highlight = WS.highlight === id ? null : id; WS.focus = 'all'; }
+    WS.selected = null; W_draw(); W_metrics();
+    if (WS.highlight) { const ws = walksInFocus().filter((w) => w.job === WS.highlight); W_list(ws, WS.highlight); }
+  });
 }
 
 // ── selection and the trace drawer ──
+function W_list(walks, label) {
+  const rows = walks.map((w) => `<div class="r" data-w="${w.id}" style="cursor:pointer"><span class="g" style="color:${OC[w.end?.outcome ?? 'running']}">${OG[w.end?.outcome ?? 'running']}</span><span class="m">${esc(w.mission)}</span><span>${esc(w.steps.map((s) => short(s.chosen ?? '?')).join(' → '))}</span></div>`).join('');
+  $('now').innerHTML = `<div class="tag">${walks.length} walks · job</div><div class="mission" style="font-family:inherit;font-size:14px">${esc(label)}</div><div style="color:#6b6b6b">its paths are painted on the flow · click a walk to open its full record</div>`;
+  $('feed').innerHTML = rows;
+  $('feed').querySelectorAll('[data-w]').forEach((r) => r.onclick = () => W_trace(Number(r.dataset.w)));
+}
 function W_select(walks, label) {
   WS.selected = new Set(walks.map((w) => w.id)); W_draw();
   const rows = walks.map((w) => `<div class="r" data-w="${w.id}" style="cursor:pointer"><span class="g" style="color:${OC[w.end?.outcome ?? 'running']}">${OG[w.end?.outcome ?? 'running']}</span><span class="m">${esc(w.mission)}</span><span>${w.steps.length}</span></div>`).join('');
@@ -186,7 +201,7 @@ function W_counts() {
     OUTCOMES.filter((o) => c[o]).map((o) => `<span><span class="g" style="color:${OC[o]}">${OG[o]}</span>${o.replace('_', ' ')} <b>${c[o]}</b></span>`).join('');
 }
 function W_metrics() {
-  const ws = walksInFocus(); const ends = ws.filter((w) => w.end).map((w) => w.end);
+  const ws = WS.highlight ? walksInFocus().filter((w) => w.job === WS.highlight) : walksInFocus(); const ends = ws.filter((w) => w.end).map((w) => w.end);
   if (!ends.length) { $('summary').classList.remove('on'); return; }
   const avg = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
   const done = ends.filter((e) => e.outcome === 'done');
@@ -197,7 +212,7 @@ function W_metrics() {
   const lost = ends.filter((e) => e.lostness != null).map((e) => e.lostness);
   const alleys = {}; for (const s of ws.flatMap((w) => w.steps)) if (s.is_error || s.dead_end) { const k = `${s.chosen}|${s.is_error ? '!' : '⊣'}|${(s.result ?? '').replace(/\s+/g, ' ').slice(0, 70)}`; alleys[k] = (alleys[k] ?? 0) + 1; }
   const alleyRows = Object.entries(alleys).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([k, n]) => { const [t, g, msg] = k.split('|'); return `<div class="row" title="${esc(msg)}"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:330px"><span class="g invalid">${g}</span>${esc(short(t))} <span style="color:#9a9a96">${esc(msg)}</span></span><b>${n}</b></div>`; }).join('');
-  $('summary').innerHTML = `<h4>${WS.focus === 'all' ? 'all jobs' : esc(WS.focus)} · ${ends.length} walks</h4>
+  $('summary').innerHTML = `<h4>${WS.highlight ? esc(WS.highlight) : WS.focus === 'all' ? 'all jobs' : esc(WS.focus)} · ${ends.length} walks</h4>
     <div class="row"><span>reached the goal</span><span><b>${Math.round((100 * done.length) / ends.length)}%</b> (${done.length}/${ends.length})</span></div>
     <div class="row"><span>calls per walk · to goal · shortest</span><span><b>${avg(ends.map((e) => e.S)).toFixed(2)}</b> · ${avg(done.map((e) => e.S)).toFixed(2)} · ${avg(ends.filter((e) => e.R).map((e) => e.R)).toFixed(1)}</span></div>
     <div class="row"><span>lostness · 0 = shortest path</span><span><b>${avg(lost).toFixed(2)}</b></span></div>
@@ -218,7 +233,7 @@ function W_now(s) {
 
 function W_on(e) {
   if (e.type === 'start') {
-    WS = { walks: new Map(), order: [], total: e.total, focus: WS.focus, selected: null, latest: null }; t0 = e.at;
+    WS = { walks: new Map(), order: [], total: e.total, focus: WS.focus, highlight: WS.highlight, selected: null, latest: null }; t0 = e.at;
     $('feed').innerHTML = ''; $('summary').classList.remove('on'); $('start').disabled = true;
     clearInterval(timer); timer = setInterval(W_counts, 250); W_queue();
   } else if (e.type === 'step') {
