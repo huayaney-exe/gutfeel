@@ -275,7 +275,7 @@ function listen() {
       const J = G.jobs[e.job]; if (J && e.profile === view) { const ds = viewDecisions().filter((d) => d.job === e.job); J.score.textContent = `${ds.filter((d) => d.verdict === 'done').length}/${ds.length} right`; }
       showNow(e); counts();
     } else if (e.type === 'end') {
-      clearInterval(timer); counts(); $('start').disabled = false; summary(e.status, e.ms);
+      clearInterval(timer); counts(); $('start').disabled = false; summary(e.status, e.ms); handoffBox(e.report);
     }
   };
 }
@@ -290,6 +290,18 @@ function listen() {
   addEventListener('resize', () => { layout(); });
   if (meta.kind === 'walks') { $('tabs').innerHTML = `<button class="on">walks · every call runs for real · max ${meta.max_steps} steps</button>`; }
 })();
+</script>
+<script>
+// Hand-off: the report path and the prompt that sends a regular agent to analyze it.
+function handoffBox(report) {
+  if (!report) return;
+  let box = document.getElementById('handoff');
+  if (!box) { box = document.createElement('div'); box.id = 'handoff'; box.style.cssText = 'padding:14px 20px;border-top:1px solid #111;background:#fff'; document.querySelector('.side').appendChild(box); }
+  box.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center"><b>hand off to an agent</b><button class="go" id="copyPrompt" style="padding:3px 10px">copy prompt</button></div>
+    <div style="color:#6b6b6b;margin:6px 0">full report · <span style="color:#111;word-break:break-all">${esc(report.path)}</span></div>
+    <textarea readonly style="width:100%;height:92px;font:11px var(--mono);border:1px solid #e3e3e1;padding:6px;resize:vertical">${esc(report.prompt)}</textarea>`;
+  document.getElementById('copyPrompt').onclick = async (ev) => { await navigator.clipboard.writeText(report.prompt); ev.target.textContent = 'copied ✓'; setTimeout(() => ev.target.textContent = 'copy prompt', 1500); };
+}
 </script>
 <script src="/walks.js"></script>
 </body>

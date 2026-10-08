@@ -5,6 +5,7 @@
 import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { loadRun, makeEngine, meta, type Decision } from './engine';
 import { makeWalker } from './walk';
+import { buildReport } from './report';
 
 const arg = (name: string, fallback?: string) => {
   const i = Bun.argv.indexOf(`--${name}`);
@@ -63,7 +64,9 @@ async function start(mode: 'live' | 'replay', key: string | undefined, speedMs: 
     else for (const d of engine.recorded()) { if (signal.stopped) break; emit(d); await Bun.sleep(speedMs); }
   }
   status = signal.stopped ? 'stopped' : 'finished';
-  send({ type: 'end', status, ms: Date.now() - t0 });
+  const report = buildReport(run);
+  send({ type: 'end', status, ms: Date.now() - t0, report });
+  if (report) console.log(`\n── hand-off ──\n${report.prompt}\n`);
 }
 const makeWalkerTotal = () => run.jobs.reduce((a, j) => a + j.missions.length, 0) * (run.protocol.samples ?? 1);
 
@@ -88,6 +91,7 @@ Bun.serve({
       start(mode, key, Math.max(10, Number(body.speed) || 90));
       return Response.json({ ok: true, mode });
     }
+    if (url.pathname === '/api/report') return Response.json(buildReport(run) ?? { error: 'no recorded run yet' });
     if (url.pathname === '/walks.js') return new Response(Bun.file(`${import.meta.dir}/walks.js`), { headers: { 'content-type': 'text/javascript; charset=utf-8' } });
     // Full trace of one walk (trace@1). Falls back to the event summary for runs recorded before traces existed.
     const tm = url.pathname.match(/^\/api\/trace\/(\d+)$/);

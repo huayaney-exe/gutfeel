@@ -245,6 +245,6 @@ function W_on(e) {
   } else if (e.type === 'walk_end') {
     let w = WS.walks.get(e.walk); if (!w) { w = { id: e.walk, job: e.job, mission: e.mission, steps: [], end: null }; WS.walks.set(e.walk, w); WS.order.push(e.walk); }
     w.end = e; W_counts(); W_metrics(); W_queue();
-  } else if (e.type === 'end') { clearInterval(timer); WS.latest = null; WS.endMs = e.ms; W_counts(); W_metrics(); W_draw(); $('start').disabled = false; }
+  } else if (e.type === 'end') { clearInterval(timer); WS.latest = null; WS.endMs = e.ms; handoffBox(e.report); W_counts(); W_metrics(); W_draw(); $('start').disabled = false; }
 }
 addEventListener('resize', () => { if (meta?.kind === 'walks') W_draw(); });
