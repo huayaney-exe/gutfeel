@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>gutfeel · report mockup</title>
+<style>
+  :root {
+    --bg: #fafaf9; --panel: #ffffff; --ink: #111111; --muted: #6b6b6b; --line: #e3e3e1;
+    --done: #1a7f37; --wrong: #cf222e; --amber: #b26b00; --stall: #8c8c8c;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+    --sans: -apple-system, "Inter", "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 13px/1.5 var(--sans); }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 28px 32px 64px; }
+  .mock { font: 11px var(--mono); color: var(--amber); border: 1px dashed var(--amber); padding: 6px 10px; margin-bottom: 20px; }
+  header { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--ink); padding-bottom: 10px; }
+  header h1 { font: 600 15px var(--mono); margin: 0; letter-spacing: -0.01em; }
+  header .meta { font: 11px var(--mono); color: var(--muted); }
+  .kpis { display: grid; grid-template-columns: repeat(5, 1fr); border-bottom: 1px solid var(--line); }
+  .kpi { padding: 14px 0; }
+  .kpi b { display: block; font: 600 20px var(--mono); }
+  .kpi span { font: 11px var(--mono); color: var(--muted); }
+  .legend { display: flex; gap: 18px; font: 11px var(--mono); color: var(--muted); padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .g { font-family: var(--mono); font-weight: 700; display: inline-block; width: 1.1em; text-align: center; }
+  .done { color: var(--done); } .wrong { color: var(--wrong); } .amber { color: var(--amber); } .stall { color: var(--stall); }
+  h2 { font: 600 12px var(--mono); margin: 28px 0 10px; }
+  h2 small { font-weight: 400; color: var(--muted); margin-left: 8px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); padding: 16px 18px; }
+
+  /* trees */
+  ul.tree, ul.tree ul { list-style: none; margin: 0; padding-left: 20px; position: relative; }
+  ul.tree { padding-left: 0; }
+  ul.tree ul::before { content: ""; position: absolute; left: 6px; top: 0; bottom: 11px; border-left: 1px solid var(--line); }
+  ul.tree li { position: relative; padding: 2px 0; }
+  ul.tree ul > li::before { content: ""; position: absolute; left: -14px; top: 12px; width: 10px; border-top: 1px solid var(--line); }
+  .row { display: flex; align-items: center; gap: 10px; min-height: 22px; }
+  .name { font-family: var(--mono); }
+  .kind { font: 10px var(--mono); color: var(--muted); text-transform: lowercase; }
+  .bar { display: inline-flex; height: 6px; width: 120px; background: var(--line); }
+  .bar i { display: block; height: 100%; }
+  .bar .d { background: var(--done); } .bar .w { background: var(--wrong); } .bar .a { background: var(--amber); } .bar .s { background: var(--stall); }
+  .n { font: 11px var(--mono); color: var(--muted); min-width: 34px; text-align: right; }
+  .note { font: 11px var(--mono); color: var(--muted); }
+  .note q { color: var(--ink); }
+  .hollow .name { color: var(--wrong); }
+  .ghost .name { color: var(--stall); text-decoration: line-through; }
+  .pair { font: 10px var(--mono); color: var(--wrong); border: 1px solid var(--wrong); padding: 0 4px; }
+
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+  .split > div { padding: 0 18px; }
+  .split > div + div { border-left: 1px solid var(--line); }
+  .split h3 { font: 600 11px var(--mono); margin: 0 0 8px; }
+  .split h3 span { color: var(--muted); font-weight: 400; }
+  .job { font-family: var(--mono); margin-bottom: 8px; }
+
+  table { width: 100%; border-collapse: collapse; font: 11.5px var(--mono); }
+  th { text-align: left; font-weight: 400; color: var(--muted); border-bottom: 1px solid var(--ink); padding: 6px 8px; }
+  td { border-bottom: 1px solid var(--line); padding: 7px 8px; vertical-align: top; }
+  td.msg { color: var(--ink); max-width: 330px; }
+  .tag { white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="mock">DESIGN MOCKUP · tool names are Praxis's real tools/list · every number and outcome below is illustrative, not measured</div>
+
+<header>
+  <h1>gutfeel · praxis</h1>
+  <div class="meta">test · profile deferred · jev-1.13.0 vs reasoner · 12 jobs · 96 phrasings · es/en</div>
+</header>
+
+<div class="kpis">
+  <div class="kpi"><b>0.71</b><span>findability [0.62–0.79]</span></div>
+  <div class="kpi"><b>0.64</b><span>decision accuracy [0.55–0.72]</span></div>
+  <div class="kpi"><b>23%</b><span>panel divergence</span></div>
+  <div class="kpi"><b>2</b><span>jobs not covered</span></div>
+  <div class="kpi"><b>11</b><span>alleys · 4 errors · 7 dead ends</span></div>
+</div>
+
+<div class="legend">
+  <span><span class="g done">●</span> done</span>
+  <span><span class="g wrong">✕</span> wrong turn</span>
+  <span><span class="g wrong">○</span> unfindable</span>
+  <span><span class="g amber">⊣</span> dead end</span>
+  <span><span class="g amber">!</span> error</span>
+  <span><span class="g stall">‖</span> stalled</span>
+  <span><span class="g amber">↻</span> loop</span>
+</div>
+
+<h2>map<small>jobs → job steps → tools · ring = how walks through the tool ended</small></h2>
+<div class="panel">
+<ul class="tree">
+  <li><div class="row"><span class="name">praxis</span><span class="kind">server · 52 tools · instructions: "start with pm_get_state"</span></div>
+  <ul>
+    <li><div class="row"><span class="name">prioritize what to build next</span><span class="kind">job</span></div>
+      <ul>
+        <li><div class="row"><span class="kind">define</span><span class="name">pm_get_state</span><span class="bar"><i class="d" style="width:82%"></i><i class="w" style="width:12%"></i><i class="s" style="width:6%"></i></span><span class="n">48</span></div></li>
+        <li><div class="row"><span class="kind">locate</span><span class="name">pm_get_backlog</span><span class="bar"><i class="d" style="width:58%"></i><i class="w" style="width:34%"></i><i class="a" style="width:8%"></i></span><span class="n">31</span><span class="pair">⇄ pm_backlog_board 0.34</span></div></li>
+        <li><div class="row"><span class="kind">execute</span><span class="name">pm_score_work_item</span><span class="bar"><i class="d" style="width:66%"></i><i class="a" style="width:26%"></i><i class="w" style="width:8%"></i></span><span class="n">27</span></div></li>
+        <li><div class="row"><span class="kind">conclude</span><span class="name">pm_commit_work_item</span><span class="bar"><i class="d" style="width:90%"></i><i class="a" style="width:10%"></i></span><span class="n">19</span></div></li>
+      </ul>
+    </li>
+    <li><div class="row"><span class="name">record what we learned</span><span class="kind">job</span></div>
+      <ul>
+        <li><div class="row"><span class="kind">execute</span><span class="name">pm_add_learning</span><span class="bar"><i class="d" style="width:52%"></i><i class="w" style="width:48%"></i></span><span class="n">40</span><span class="pair">⇄ pm_save_artifact 0.41</span></div></li>
+        <li><div class="row"><span class="kind">modify</span><span class="name">pm_update_learning</span><span class="bar"><i class="d" style="width:71%"></i><i class="a" style="width:29%"></i></span><span class="n">14</span></div></li>
+      </ul>
+    </li>
+    <li><div class="row"><span class="name">split a decision into tasks for the team</span><span class="kind">job</span></div>
+      <ul>
+        <li><div class="row"><span class="kind">prepare</span><span class="name">pm_list_members</span><span class="bar"><i class="d" style="width:44%"></i><i class="wrong w" style="width:20%"></i><i class="a" style="width:36%"></i></span><span class="n">25</span></div></li>
+        <li><div class="row"><span class="kind">execute</span><span class="name">pm_add_task</span><span class="bar"><i class="d" style="width:61%"></i><i class="a" style="width:39%"></i></span><span class="n">23</span></div></li>
+      </ul>
+    </li>
+    <li class="hollow"><div class="row"><span class="g wrong">○</span><span class="name">undo a commitment</span><span class="kind">job · needed, no tool claims it</span></div></li>
+    <li class="hollow"><div class="row"><span class="g wrong">○</span><span class="name">see what a teammate changed this week</span><span class="kind">job · needed, no tool claims it</span></div></li>
+    <li><div class="row"><span class="name">(no job)</span><span class="kind">claimed by tools, needed by no scenario</span></div>
+      <ul>
+        <li class="ghost"><div class="row"><span class="name">pm_get_calibration</span><span class="kind">dead tool</span></div></li>
+        <li class="ghost"><div class="row"><span class="name">pm_link_artifacts_batch</span><span class="kind">dead tool · consolidation candidate with pm_link_artifacts</span></div></li>
+      </ul>
+    </li>
+  </ul>
+  </li>
+</ul>
+</div>
+
+<h2>walks<small>job "log this idea and tell me if it's worth doing" · 48 walks · live, smoke tenant</small></h2>
+<div class="panel split">
+  <div>
+    <h3>jev <span>· non-deliberating</span></h3>
+    <ul class="tree">
+      <li><div class="row"><span class="name">request</span><span class="n">48</span></div>
+      <ul>
+        <li><div class="row"><span class="name">pm_get_state</span><span class="bar"><i class="d" style="width:65%"></i><i class="w" style="width:20%"></i><i class="a" style="width:15%"></i></span><span class="n">34</span></div>
+          <ul>
+            <li><div class="row"><span class="name">pm_add_work_item</span><span class="bar"><i class="d" style="width:81%"></i><i class="a" style="width:19%"></i></span><span class="n">27</span></div>
+              <ul>
+                <li><div class="row"><span class="g done">●</span><span class="name">pm_score_work_item</span><span class="n">22</span></div></li>
+                <li><div class="row"><span class="g amber">⊣</span><span class="name">pm_get_work_item</span><span class="n">5</span><span class="note">missing handle · <q>score pending: 2 of 5 inputs</q></span></div></li>
+              </ul>
+            </li>
+            <li><div class="row"><span class="g wrong">✕</span><span class="name">pm_add_learning</span><span class="n">7</span><span class="note">p 0.46 vs pm_add_work_item 0.39</span></div></li>
+          </ul>
+        </li>
+        <li><div class="row"><span class="g wrong">✕</span><span class="name">pm_get_user_context</span><span class="n">9</span><span class="note">instructions say never start here</span></div></li>
+        <li><div class="row"><span class="g stall">‖</span><span class="name">ask_user</span><span class="n">5</span><span class="note">request was not ambiguous</span></div></li>
+      </ul></li>
+    </ul>
+  </div>
+  <div>
+    <h3>reasoner <span>· control</span></h3>
+    <ul class="tree">
+      <li><div class="row"><span class="name">request</span><span class="n">48</span></div>
+      <ul>
+        <li><div class="row"><span class="name">pm_get_state</span><span class="bar"><i class="d" style="width:91%"></i><i class="a" style="width:9%"></i></span><span class="n">46</span></div>
+          <ul>
+            <li><div class="row"><span class="name">pm_add_work_item</span><span class="bar"><i class="d" style="width:90%"></i><i class="a" style="width:10%"></i></span><span class="n">44</span></div>
+              <ul>
+                <li><div class="row"><span class="g done">●</span><span class="name">pm_score_work_item</span><span class="n">40</span></div></li>
+                <li><div class="row"><span class="g amber">!</span><span class="name">pm_score_work_item</span><span class="n">4</span><span class="note">error · recovered · <q>impact must be 1–5</q></span></div></li>
+              </ul>
+            </li>
+            <li><div class="row"><span class="g wrong">✕</span><span class="name">pm_add_learning</span><span class="n">2</span></div></li>
+          </ul>
+        </li>
+        <li><div class="row"><span class="g wrong">✕</span><span class="name">pm_get_user_context</span><span class="n">2</span></div></li>
+      </ul></li>
+    </ul>
+  </div>
+</div>
+
+<h2>alley log<small>every error and dead end, grouped by tool · kind · message</small></h2>
+<div class="panel" style="padding:0">
+<table>
+  <thead><tr><th>kind</th><th>tool</th><th>job · step</th><th>response</th><th>triage</th><th>walks</th><th>finding</th></tr></thead>
+  <tbody>
+    <tr><td class="tag"><span class="g amber">!</span>error · stuck</td><td>pm_update_work_item</td><td>prioritize · modify</td><td class="msg">VALIDATION: work_item_id must be a UUID</td><td>actionable 0.81 → fix_argument</td><td>9/48 · jev, small</td><td>F-007</td></tr>
+    <tr><td class="tag"><span class="g amber">⊣</span>dead end · missing handle</td><td>pm_get_work_item</td><td>prioritize · execute</td><td class="msg">score pending: 2 of 5 inputs</td><td>result → unclear 0.58</td><td>5/48 · jev</td><td>F-003</td></tr>
+    <tr><td class="tag"><span class="g amber">⊣</span>dead end · opaque success</td><td>pm_add_task</td><td>split into tasks · execute</td><td class="msg">{"ok": true}</td><td>done? 0.49</td><td>9/23 · all</td><td>F-009</td></tr>
+    <tr><td class="tag"><span class="g amber">!</span>error · recovered</td><td>pm_score_work_item</td><td>prioritize · execute</td><td class="msg">impact must be 1–5</td><td>actionable 0.92 → fix_argument</td><td>4/48 · reasoner</td><td>—</td></tr>
+    <tr><td class="tag"><span class="g amber">↻</span>loop</td><td>pm_list_members</td><td>split into tasks · prepare</td><td class="msg">same call ×3, same result</td><td>—</td><td>6/25 · small</td><td>F-011</td></tr>
+    <tr><td class="tag"><span class="g wrong">○</span>unfindable</td><td>pm_commit_work_item</td><td>prioritize · conclude</td><td class="msg">not in search top 5 for "approve it" / "dale luz verde"</td><td>—</td><td>7/19 · deferred</td><td>F-004</td></tr>
+  </tbody>
+</table>
+</div>
+
+</div>
+</body>
+</html>
