@@ -337,6 +337,10 @@ The renderer is one function shared by every participant, so they all see exactl
 
 **The live guard.** A tool runs only if it's annotated `readOnlyHint: true`, or explicitly allowed with `--allow tool,tool`. Annotations from untrusted servers are hints, not guarantees (per the MCP spec), so the allowlist is the actual protection, and live mode prints it before starting.
 
+**Sandbox only.** Live mode runs tools for real, so it targets a sandbox or test environment, never production data. The harness refuses to start a live run until the operator confirms the target is a sandbox, runs only allowlisted tools, logs every write to `writes.jsonl` for cleanup, and resets or isolates state between walks: a walk must never see what an earlier walk created. (Pilot 002 learned this the hard way: the first "capture an idea" walk created the idea, so later walks hit a duplicate-slug error caused by the test itself, not the server.)
+
+**Context budget.** A participant's window holds the tool surface, the server instructions and the transcript. When the surface alone nearly fills it, walks run out of room after a few steps. That's reported as a finding about the surface (its size), not as a participant failure; overflowing steps are marked `invalid`.
+
 **Hands.** In live mode, arguments are filled in by a constrained generative model that sees the mission, the materials, the transcript and that one tool's schema, under the same rule as the participant: nothing gutfeel didn't have to say. Hands never choose the tool. When an argument is wrong, the failure is tagged `argument`, not `decision`, so participants aren't blamed for the hands' mistakes.
 
 ---

@@ -34,7 +34,7 @@ What you get is a tree of every path they took: where they found the right tool,
 </p>
 
 > [!IMPORTANT]
-> **Pre-alpha. Nothing is runnable yet.** This README describes what gutfeel is being built to do, and [DESIGN.md](docs/DESIGN.md) is the spec. We'd rather show you the method before the hype. Watch the repo to follow the first real reports.
+> **Pre-alpha.** [`gutfeel live`](packages/live) runs today: first-click runs and real multi-step walks, drawn as they happen. The `npx gutfeel` CLI and the rest of the pipeline described here are in progress, and [DESIGN.md](docs/DESIGN.md) is the spec. Watch the repo to follow the first real reports.
 
 ## Contents
 
@@ -240,6 +240,10 @@ A measurement nobody has validated is a vibe with a number on it. Before any pub
 ---
 
 ## Quickstart
+
+> [!WARNING]
+> **Live mode runs your tools for real. Point it at a sandbox or test environment, never at production data.**
+> A live walk creates, updates and reads whatever the participant decides, using the account you connect. Use a separate environment or a disposable test account seeded for the purpose, and expect test records to be left behind. gutfeel only runs tools on its allowlist (read-only plus additive writes), it logs every write so you can clean up, and it won't start a live walk until you confirm the target is a sandbox. Those guards limit damage; they don't make production safe. Dry runs execute nothing.
 
 > [!NOTE]
 > This is the interface we're building toward. It doesn't run yet; see [Status](#status).

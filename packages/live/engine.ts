@@ -3,7 +3,7 @@
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 
-export type Tool = { name: string; description: string; inputSchema?: any };
+export type Tool = { name: string; description: string; inputSchema?: any; annotations?: { readOnlyHint?: boolean } };
 export type Mission = { text: string; lang: string; style: string };
 export type Job = { id: string; statement?: string; missions: Mission[]; materials?: Record<string, string> };
 export type Verdict = 'done' | 'wrong' | 'unfindable' | 'stalled' | 'invalid';
@@ -156,15 +156,18 @@ export function meta(run: Run) {
   for (const j of run.jobs) {
     const steps = jm?.jobs.find((x: any) => x.id === j.id)?.steps ?? [];
     for (const s of steps) for (const t of s.tools) order(t);
-    for (const t of run.protocol.labels[j.id]?.first_step ?? []) order(t);
+    for (const t of run.protocol.labels?.[j.id]?.first_step ?? []) order(t);
+    for (const t of run.protocol.goals?.[j.id]?.goal ?? []) order(t);
   }
   const dead = run.tools.map((t) => t.name).filter((n) => !used.includes(n));
   return {
     server: run.surface.server.name, version: run.surface.server.version, tool_count: run.tools.length,
     protocol: run.protocol.hash, frame: run.protocol.frame.version, profiles: run.protocol.profiles, samples: run.protocol.samples,
-    jobs: run.jobs.map((j) => ({ id: j.id, statement: j.statement ?? '', missions: j.missions.length, should_stop: !!run.protocol.labels[j.id]?.should_stop })),
+    kind: run.protocol.goals ? 'walks' : 'first-click',
+    jobs: run.jobs.map((j) => ({ id: j.id, statement: j.statement ?? '', missions: j.missions.length, should_stop: !!run.protocol.labels?.[j.id]?.should_stop || j.id === 'ambiguous', goal: run.protocol.goals?.[j.id]?.goal ?? [], R: run.protocol.goals?.[j.id]?.R ?? null })),
     tools: [...used, ...dead].map((name) => ({ name, dead: dead.includes(name) })),
     nontool: NONTOOL,
-    has_recording: existsSync(`${run.dir}/events.jsonl`),
+    has_recording: existsSync(`${run.dir}/${run.protocol.goals ? 'walks.jsonl' : 'events.jsonl'}`),
+    max_steps: run.protocol.max_steps ?? null,
   };
 }

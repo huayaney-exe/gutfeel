@@ -68,6 +68,7 @@
     <div class="seg"><button data-mode="replay" class="on">replay</button><button data-mode="live">live · Jev</button></div>
     <input id="key" type="password" placeholder="Jev key · TypeSafe or OpenRouter" autocomplete="off" style="display:none">
     <select id="speed"><option value="35">fast</option><option value="90" selected>normal</option><option value="220">slow</option></select>
+    <label id="sbx" style="display:none;color:#b26b00"><input type="checkbox" id="sbxack"> target is a sandbox · no production data</label>
     <button class="go" id="start">▶ play</button>
     <button class="ghost" id="stop">stop</button>
   </div>
@@ -109,7 +110,8 @@ function layout() {
   const H = Math.max(top * 2 + toolRows.length * rowH, wrap.clientHeight - 4);
   svg.style.fontSize = rowH < 14 ? '10px' : '11px';
   svg.setAttribute('width', W); svg.setAttribute('height', H);
-  const xRoot = 34, xJob = 250, xTool = W - 300;
+  const walksMode = meta.kind === 'walks';
+  const xRoot = 34, xJob = 230, xTool = walksMode ? Math.min(560, W * 0.5) : W - 300, xRail = xTool + 232;
   const gEdges = el('g', {}, svg), gStatic = el('g', {}, svg), gPulse = el('g', {}, svg), gNodes = el('g', {}, svg);
   const rootY = H / 2;
   el('circle', { cx: xRoot, cy: rootY, r: 5, fill: '#111' }, gNodes);
@@ -130,12 +132,13 @@ function layout() {
     const dot = el('circle', { cx: xTool, cy: y, r: 2.5, fill: '#d4d4d0' }, gNodes);
     const label = el('text', { x: xTool + 10, y: y + 4, fill: r.nontool ? '#6b6b6b' : '#b9b9b5', 'text-decoration': r.dead ? 'line-through' : 'none', 'font-style': r.nontool ? 'italic' : 'normal' }, gNodes);
     label.textContent = r.nontool ? r.name.replace('_', ' ') : r.name;
-    const count = el('text', { x: W - 18, y: y + 4, 'text-anchor': 'end', fill: '#9a9a96' }, gNodes);
+    const count = el('text', walksMode ? { x: xTool - 10, y: y + 4, 'text-anchor': 'end', fill: '#9a9a96' } : { x: W - 18, y: y + 4, 'text-anchor': 'end', fill: '#9a9a96' }, gNodes);
+    if (walksMode) el('line', { x1: xTool + 216, y1: y, x2: xRail, y2: y, stroke: '#ececea' }, gStatic);
     tools[r.name] = { x: xTool, y, dot, label, count, n: 0, dead: r.dead, nontool: r.nontool };
     y += rowH;
   }
-  G = { svg, gEdges, gPulse, jobs, tools, edges: {} };
-  redraw();
+  G = { svg, gEdges, gPulse, jobs, tools, edges: {}, arcs: {}, xRail, W };
+  if (walksMode) W_redraw(); else redraw();
 }
 
 // ── state of the current view, recomputed from all decisions ──
@@ -249,7 +252,7 @@ document.querySelectorAll('.seg button').forEach((b) => b.onclick = () => {
   if ($('key').tagName === 'INPUT' || mode === 'live') $('key').style.display = mode === 'live' ? '' : 'none'; $('speed').style.display = mode === 'replay' ? '' : 'none';
 });
 $('start').onclick = async () => {
-  const body = { mode, key: mode === 'live' && $('key').tagName === 'INPUT' ? $('key').value.trim() : undefined, speed: Number($('speed').value) };
+  const body = { mode, sandbox_ack: $('sbxack').checked, key: mode === 'live' && $('key').tagName === 'INPUT' ? $('key').value.trim() : undefined, speed: Number($('speed').value) };
   const r = await fetch('/api/start', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
   const j = await r.json();
   if (!r.ok) { $('now').innerHTML = `<div class="empty err">${esc(j.error)}</div>`; return; }
@@ -261,6 +264,7 @@ function listen() {
   const es = new EventSource('/api/stream');
   es.onmessage = (m) => {
     const e = JSON.parse(m.data);
+    if (meta.kind === 'walks') return W_on(e);
     if (e.type === 'start') {
       decisions = []; total = e.total; t0 = e.at; $('feed').innerHTML = ''; $('summary').classList.remove('on');
       $('start').disabled = true; redraw(); clearInterval(timer); timer = setInterval(counts, 200);
@@ -275,6 +279,117 @@ function listen() {
   };
 }
 
+
+// ── walks: entry edges job → first tool, then jumps tool ⌒ tool on the rail ──
+const OUT = { done: ['●', 'done', 'reached the goal'], stalled: ['‖', 'stalled', 'stopped before the goal'], wrong: ['✕', 'wrong', 'wrong for this mission'],
+  loop: ['↻', 'invalid', 'looped'], max_steps: ['…', 'stalled', 'ran out of steps'], error_stuck: ['!', 'invalid', 'stuck on an error'], guarded: ['⊘', 'stalled', 'hit a guarded tool'], invalid: ['?', 'invalid', 'invalid'] };
+let WS = { steps: [], ends: [], prev: {}, total: 0 };
+
+function W_redraw() {
+  G.gEdges.innerHTML = ''; G.edges = {}; G.arcs = {};
+  for (const t of Object.values(G.tools)) { t.n = 0; t.dot.setAttribute('r', 2.5); t.dot.setAttribute('fill', '#d4d4d0'); t.label.setAttribute('fill', t.nontool ? '#6b6b6b' : '#b9b9b5'); t.count.textContent = ''; }
+  const prev = {};
+  for (const e of WS.steps) { W_draw(e, prev[e.walk], false); if (e.chosen) prev[e.walk] = e.chosen; }
+  W_jobScores(); W_counts(); W_metrics();
+}
+function stepColor(e) { return e.goal_hit ? COLOR.done : e.is_error || e.dead_end ? '#b26b00' : e.executed === false && e.chosen && !meta.nontool.includes(e.chosen) ? '#8c8c8c' : '#111'; }
+function W_draw(e, from, animate) {
+  if (!e.chosen) return;
+  const T = G.tools[e.chosen]; if (!T) return;
+  let path;
+  if (!from) {
+    const J = G.jobs[e.job]; if (!J) return;
+    const key = `${e.job}→${e.chosen}`;
+    let ed = G.edges[key];
+    if (!ed) ed = G.edges[key] = { n: 0, path: el('path', { d: `M${J.x},${J.y} C${(J.x + T.x) / 2},${J.y} ${(J.x + T.x) / 2},${T.y} ${T.x},${T.y}`, fill: 'none', stroke: '#111', 'stroke-linecap': 'round' }, G.gEdges) };
+    ed.n++; ed.path.setAttribute('stroke-opacity', 0.28); ed.path.setAttribute('stroke-width', 0.8 + Math.sqrt(ed.n) * 1.1);
+    path = ed.path;
+  } else {
+    const F = G.tools[from]; if (!F) return;
+    const key = `${from}⌒${e.chosen}`;
+    let a = G.arcs[key];
+    if (!a) {
+      const x = G.xRail, dy = Math.abs(T.y - F.y);
+      const d = from === e.chosen ? `M${x},${F.y} c 26,-16 26,16 0,0` : `M${x},${F.y} C${x + Math.min(24 + dy * 0.42, G.W - x - 16)},${F.y} ${x + Math.min(24 + dy * 0.42, G.W - x - 16)},${T.y} ${x},${T.y}`;
+      a = G.arcs[key] = { n: 0, path: el('path', { d, fill: 'none', stroke: '#111', 'stroke-linecap': 'round' }, G.gEdges) };
+      for (const P of [F, T]) if (!P.rail) P.rail = el('circle', { cx: x, cy: P.y, r: 2, fill: '#111' }, G.gEdges);
+    }
+    a.n++; a.path.setAttribute('stroke-opacity', 0.32); a.path.setAttribute('stroke-width', 0.8 + Math.sqrt(a.n) * 1.2);
+    if (e.is_error) a.path.setAttribute('stroke', '#b26b00');
+    path = a.path;
+  }
+  T.n++; T.dot.setAttribute('r', Math.min(2.5 + Math.sqrt(T.n) * 1.5, 10)); T.dot.setAttribute('fill', '#111'); T.label.setAttribute('fill', '#111'); T.count.textContent = T.n;
+  if (animate) pulse(path, null, T, stepColor(e));
+}
+// reuse pulse with an explicit color
+const _pulse = pulse;
+pulse = function (path, verdict, T, color) {
+  if (!color) return _pulse(path, verdict, T);
+  COLOR.__tmp = color; return _pulse(path, '__tmp', T);
+};
+function W_jobScores() {
+  for (const [id, J] of Object.entries(G.jobs)) {
+    const ends = WS.ends.filter((x) => x.job === id);
+    if (!ends.length) { J.score.textContent = ''; continue; }
+    const ok = ends.filter((x) => x.outcome === 'done').length, calls = ends.reduce((a, x) => a + x.S, 0) / ends.length;
+    J.score.textContent = `${ok}/${ends.length} goal · ${calls.toFixed(1)} calls`;
+  }
+}
+function W_counts() {
+  const c = {}; for (const x of WS.ends) c[x.outcome] = (c[x.outcome] ?? 0) + 1;
+  const n = WS.ends.length, T = WS.total || 1;
+  $('prog').innerHTML = ['done', 'stalled', 'wrong', 'guarded', 'max_steps', 'loop', 'error_stuck', 'invalid'].map((k) => `<i style="width:${(100 * (c[k] ?? 0)) / T}%;background:${k === 'done' ? COLOR.done : k === 'wrong' ? COLOR.wrong : k === 'stalled' || k === 'guarded' || k === 'max_steps' ? '#8c8c8c' : '#b26b00'}"></i>`).join('');
+  const secs = t0 ? ((Date.now() - t0) / 1000).toFixed(1) : '0.0';
+  $('counts').innerHTML = `<span><b>${n}</b> / ${WS.total || '—'} walks · ${WS.steps.length} steps · ${secs}s</span>` +
+    Object.entries(c).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<span><span class="g ${OUT[k][1]}">${OUT[k][0]}</span>${k.replace('_', ' ')} <b>${v}</b></span>`).join('');
+}
+function W_metrics() {
+  const ends = WS.ends; if (!ends.length) return;
+  const avg = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
+  const done = ends.filter((x) => x.outcome === 'done');
+  const calls = WS.steps.filter((s) => s.chosen && !meta.nontool.includes(s.chosen));
+  const by = {}; for (const s of calls) by[s.chosen] = (by[s.chosen] ?? 0) + 1;
+  const tot = calls.length || 1, shares = Object.entries(by).sort((a, b) => b[1] - a[1]);
+  const hhi = shares.reduce((a, [, n]) => a + (n / tot) ** 2, 0);
+  const lost = ends.filter((x) => x.lostness != null).map((x) => x.lostness);
+  const alleys = {}; for (const s of WS.steps) if (s.is_error || s.dead_end) { const k = `${s.chosen}|${s.is_error ? 'error' : 'dead end · ' + s.dead_end}|${(s.result ?? '').slice(0, 90)}`; alleys[k] = (alleys[k] ?? 0) + 1; }
+  const alleyRows = Object.entries(alleys).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([k, n]) => { const [t, kind, msg] = k.split('|'); return `<div class="row" title="${esc(msg)}"><span><span class="g invalid">${kind === 'error' ? '!' : '⊣'}</span>${esc(t)} <span style="color:#9a9a96">${esc(kind)}</span></span><b>${n}</b></div>`; }).join('');
+  $('summary').innerHTML = `<h4>${ends.length}/${WS.total} walks</h4>
+    <div class="row"><span>reached the goal</span><span><b>${Math.round((100 * done.length) / ends.length)}%</b> (${done.length}/${ends.length})</span></div>
+    <div class="row"><span>tool calls per walk</span><span><b>${avg(ends.map((x) => x.S)).toFixed(2)}</b> · to goal ${avg(done.map((x) => x.S)).toFixed(2)} · min R ${avg(ends.filter((x) => x.R).map((x) => x.R)).toFixed(2)}</span></div>
+    <div class="row"><span>lostness (0 = shortest path)</span><span><b>${avg(lost).toFixed(2)}</b></span></div>
+    <div class="row"><span>concentration (HHI)</span><span><b>${hhi.toFixed(2)}</b> · top ${esc(shares[0]?.[0] ?? '—')} ${Math.round((100 * (shares[0]?.[1] ?? 0)) / tot)}%</span></div>
+    <div class="row"><span>distinct tools used</span><span><b>${shares.length}</b> of ${meta.tool_count}</span></div>
+    ${alleyRows ? `<h4 style="margin-top:10px">alley log</h4>${alleyRows}` : ''}`;
+  $('summary').classList.add('on');
+}
+function W_now(e) {
+  const bars = e.top.length ? e.top.map(([t, p]) => `<div class="b ${t === e.chosen ? 'chosen' : ''}"><span class="t">${esc(t.replace('_', ' '))}</span><span class="track"><span class="fill" style="width:0%" data-w="${(p * 100).toFixed(1)}"></span></span><span>${p.toFixed(2)}</span></div>`).join('') : '';
+  const what = e.chosen && meta.nontool.includes(e.chosen) ? 'chose not to call a tool'
+    : e.executed === false ? (e.result ? 'call failed' : 'guarded · not executed')
+    : e.is_error ? 'error' : e.dead_end ? `dead end · ${e.dead_end}` : e.goal_hit ? 'goal reached' : 'ran';
+  $('now').innerHTML = `<div class="tag">${esc(e.job)} · walk ${e.walk} · step ${e.step}${e.model ? ' · ' + esc(e.model) : ''}</div>
+    <div class="mission">“${esc(e.mission)}”</div><div class="bars">${bars}</div>
+    <div class="verdict" style="color:${stepColor(e)}">${esc(e.chosen ?? '—')} · ${what}</div>
+    ${e.args ? `<pre style="white-space:pre-wrap;color:#6b6b6b;margin:8px 0 0;max-height:52px;overflow:hidden">${esc(JSON.stringify(e.args))}</pre>` : ''}
+    ${e.result ? `<pre style="white-space:pre-wrap;margin:6px 0 0;max-height:70px;overflow:hidden;color:${e.is_error ? '#b26b00' : '#111'}">${esc(e.result.slice(0, 260))}</pre>` : ''}`;
+  requestAnimationFrame(() => document.querySelectorAll('.fill').forEach((f) => f.style.width = f.dataset.w + '%'));
+}
+function W_on(e) {
+  if (e.type === 'start') {
+    WS = { steps: [], ends: [], prev: {}, total: e.total }; t0 = e.at; $('feed').innerHTML = ''; $('summary').classList.remove('on');
+    $('start').disabled = true; W_redraw(); clearInterval(timer); timer = setInterval(W_counts, 250);
+  } else if (e.type === 'step') {
+    WS.steps.push(e); W_draw(e, WS.prev[e.walk], true); if (e.chosen) WS.prev[e.walk] = e.chosen; W_now(e);
+  } else if (e.type === 'walk_end') {
+    WS.ends.push(e); W_jobScores(); W_counts(); W_metrics();
+    const o = OUT[e.outcome] ?? OUT.invalid;
+    const r = document.createElement('div'); r.className = 'r';
+    r.innerHTML = `<span class="g ${o[1]}">${o[0]}</span><span class="m" title="${esc(e.mission)}">${esc(e.mission)}</span><span>${esc(e.path.join(' → ') || '—')}</span>`;
+    $('feed').prepend(r); while ($('feed').children.length > 60) $('feed').lastChild.remove();
+  } else if (e.type === 'end') { clearInterval(timer); W_counts(); W_metrics(); $('start').disabled = false; }
+}
+
 (async () => {
   meta = await (await fetch('/api/meta')).json();
   $('title').textContent = `· ${meta.server}@${meta.version} · ${meta.tool_count} tools · ${meta.jobs.length} jobs · ${meta.frame} · protocol ${String(meta.protocol).slice(0, 12)}`;
@@ -282,6 +397,7 @@ function listen() {
   if (meta.key_from_env) { $('key').replaceWith(Object.assign(document.createElement('span'), { id: 'key', textContent: 'Jev key ✓ from environment', style: 'color:#1a7f37' })); }
   view = meta.profiles[0]; setTabs(); layout(); counts(); listen();
   addEventListener('resize', () => { layout(); });
+  if (meta.kind === 'walks') { $('tabs').innerHTML = `<button class="on">walks · every call runs for real · max ${meta.max_steps} steps</button>`; }
 })();
 </script>
 </body>

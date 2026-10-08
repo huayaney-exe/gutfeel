@@ -18,6 +18,9 @@ bun packages/live/server.ts --dir <run folder> --open
 
 A run folder holds `surface.json`, `missions.json`, a frozen `protocol.json` and optionally `jobmap.json` and `events.jsonl`. The server refuses to start if the surface or the missions differ from what the protocol froze.
 
+> [!WARNING]
+> Walks run every call for real. Use a sandbox or test environment, never production data. The page asks you to confirm before a live walk starts.
+
 **Modes**
 - **live** asks Jev for real.
 - **replay** plays back a recorded run, re-judged under the current protocol. Use it for demos and GIFs.
