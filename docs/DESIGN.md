@@ -4,6 +4,78 @@ Status: pre-alpha design, 2026-10-07. This document is the spec the code follows
 
 ---
 
+## 0. Method: the protocol is the product
+
+gutfeel's output is only worth something if every run follows the same method, as in a usability study or a clinical trial. So the method isn't a guideline. **Each rule below is enforced by the harness, and a run that breaks one ends as `invalid` instead of producing a result.**
+
+### 0.1 Freeze before you run
+
+Every `test` run starts from a **`protocol@1`** file, frozen and hashed before the first decision:
+
+| Field | Content |
+|---|---|
+| question | What this run is meant to find out, in one sentence |
+| surface | `surface@1` hash: the exact tools under test |
+| suite | `scenario@1[]` hash: missions, materials, acceptable paths, success checks |
+| frame | `frame@1` version |
+| participants | id + pinned version for each (`jev-1.13.0`, never `latest`) |
+| profiles · mode · samples | `deferred` / `upfront` / `crowded` · dry / live · N per mission |
+| analysis plan | metrics, CI method, chance correction, minimum number of jobs |
+| exclusion rules | when a walk counts as invalid (0.5), decided **before** the data |
+| live allowlist | tools allowed to execute (live only) |
+
+The run refuses to start without a frozen protocol, and any change means a new version. Every report shows the protocol hash, so anyone can check it was followed. `scan` is exploratory, so it doesn't need a protocol, and its output is labeled *exploratory* and never scored (§5).
+
+### 0.2 Roles that can't see each other's work
+
+The information barriers are enforced in code, not left to good intentions:
+
+| Role | Can see | Can never see |
+|---|---|---|
+| Mission writer | Needed jobs, outside sources | Tool names, descriptions, schemas, results |
+| Labeler (acceptable paths, success checks) | Tools + missions | Any participant's decisions |
+| Participant | Mission, materials, the server's words, the frame (§4.3) | Labels, other walks, anything else |
+| Analyst | Everything, but only after the run is sealed | Nothing, since the analysis plan is already frozen |
+
+`engine/script` takes no `surface@1` argument at all. The type system blocks the mission writer from receiving the tools.
+
+### 0.3 Controls in every run
+
+Each run includes two servers built into gutfeel, next to the server under test:
+
+- **Positive control:** a planted server with known defects: one confusable pair, one missing handle, one opaque success, one unactionable error, one unfindable name, one dead tool. If gutfeel misses any planted defect, the run is invalid.
+- **Negative control:** a clean server with the same jobs and no defects. If gutfeel reports findings there above the noise floor, the run is invalid.
+
+This is E5 shrunk to a check that runs every time: proof the instrument works today, not just that it worked once.
+
+### 0.4 Pilot, then run
+
+As with a real usability study, two jobs run first as a pilot. The pilot checks:
+- the frame isn't steering (§4.3)
+- missions pass the leakage check
+- everything fits in Jev's window
+- the noise floor is measured
+
+Only then does the full suite run. Pilot data never counts toward results.
+
+### 0.5 Invalid is not failed
+
+A walk that broke because of the *harness or infrastructure* gets marked `invalid`, never counted as a participant failure. Examples: timeout, rate limit, expired auth, the hands sending arguments that don't match the schema, the server crashing. Invalid walks are listed with their reasons. If more than 5% of walks are invalid, the whole run is invalid. Nothing gets dropped after looking at the results, and every exclusion follows a rule from 0.1.
+
+### 0.6 Provenance and reproduction
+
+- Every input (surface, missions, frame, participant versions, profile, seed) is hashed into the run manifest.
+- `gutfeel replay <run.json>` replays the run from cache with identical decisions, or flags the decisions that changed (a sign a participant drifted).
+- Tokens and secrets are removed before anything is written.
+
+### 0.7 The harness is tested like an instrument
+
+- Golden fixtures for every contract.
+- A property test: reordering tools or changing whitespace must not move the score beyond the noise floor.
+- The planted and clean control servers live in the repo's test suite, so CI fails if gutfeel stops catching a planted defect.
+
+---
+
 ## 1. What gutfeel answers
 
 For an MCP server and the jobs its users bring to it:
@@ -278,6 +350,7 @@ All contracts are defined in `packages/core` as zod schemas, with JSON Schema ex
 | `surface@1` | `server {name, version, transport, instructions}` · `tools[] {name, description, inputSchema, annotations}` · `hash` · `captured_at` |
 | `jobmap@1` | `jobs[] {id, statement (verb + object + context, no solution words), source: needed\|claimed, steps[] {ulwick_step, tools[]}}` · `uncovered[]` · `dead_tools[]` · `overlaps[]` |
 | `scenario@1` | `id, job_id, missions[] {text, lang, style}, materials {key: value}, acceptable_paths[][] (sets per step), success {kind: path\|state, check}, should_stall?, leakage_score` · personas live only in the authoring notes, never in what the participant sees |
+| `protocol@1` | `question, surface_hash, suite_hash, frame, participants[] {id, version}, profiles, mode, samples, analysis_plan, exclusion_rules, live_allowlist, frozen_at, hash` · required for `test` |
 | `frame@1` | `instruction, option_labels {ask_user, answer_directly, stop}, probe_frames {…}, version` · the only text gutfeel itself shows a participant |
 | `event@1` | `run_id, walk_id, step, participant, profile, options_hash, distribution {option: p}, chosen, call? {tool, args}, result? {ok, excerpt, error?}, state: done\|wrong\|unfindable\|dead_end\|error\|stalled\|loop\|continue, rule?` |
 | `run@1` | `surface_hash, suite_hash, participants[] {id, version}, profile, mode, walks[], metrics {…, ci}, created_at` |
@@ -320,7 +393,8 @@ gutfeel/
 │   │   ├── run/           dry runner · live runner · hands · live guard · fault injection · alley rules
 │   │   └── find/          findings · severity · ablation · rewrite verification
 │   ├── ui/          React + SVG (d3-hierarchy for layout): map tree · walk tree · alley log · confusion · findings · diff
-│   └── cli/         `gutfeel scan|test|diff|report` · serves the UI · exports static HTML
+│   ├── controls/    planted (positive) and clean (negative) MCP servers + their expected findings
+│   └── cli/         `gutfeel scan|test|diff|replay|report` · serves the UI · exports static HTML
 ├── suites/          public labeled suites (one folder per server)
 ├── docs/            DESIGN.md · method notes · validation results
 └── examples/        reports from real runs (only real ones)
@@ -378,7 +452,8 @@ Chunks don't overlap and together cover the spec, so after C1 they can be built 
 
 | Chunk | Delivers | Depends on |
 |---|---|---|
-| C1 | `core`: contracts, metrics, CI math, tree builders + tests | — |
+| C1 | `core`: contracts (incl. `protocol@1`), metrics, CI math, tree builders + tests | — |
+| C1b | Control servers: the planted (positive) and clean (negative) MCP servers + their expected findings | C1 |
 | C2 | `engine/surface`: every connection type → `surface@1` | C1 |
 | C3 | `engine/participants`: panel + renderer + profiles + cache | C1 |
 | C4 | `engine/map` + `engine/script` | C1 |
