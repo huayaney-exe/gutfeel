@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="320" viewBox="0 0 1280 320" role="img" aria-label="gutfeel: AX vibe checks for MCP servers, measured">
+  <rect width="1280" height="320" fill="#fafaf9"/>
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">
+    <text x="72" y="148" font-size="78" font-weight="700" fill="#111111" letter-spacing="-2">gutfeel</text>
+    <text x="76" y="196" font-size="22" fill="#111111">AX vibe checks for MCP servers, measured.</text>
+    <text x="76" y="232" font-size="15" fill="#6b6b6b">usability testing for agents · a mission, no hints · every wrong turn mapped</text>
+  </g>
+  <g transform="translate(40 0)" fill="none" stroke="#cfcfcb" stroke-width="1.5">
+    <path d="M772 92 V256"/>
+    <path d="M772 118 H792"/><path d="M772 214 H792"/><path d="M772 256 H792"/>
+    <path d="M806 128 V176"/><path d="M806 150 H826"/><path d="M806 176 H826"/>
+  </g>
+  <g transform="translate(40 0)" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="15" fill="#111111">
+    <text x="762" y="78" fill="#6b6b6b">"create an account"</text><text x="1170" y="78" fill="#6b6b6b">n=48</text>
+    <text x="800" y="123">auth_lookup_user</text><text x="1170" y="123" fill="#6b6b6b">34</text>
+    <text x="834" y="155" fill="#1a7f37">●</text><text x="856" y="155">auth_create_user</text><text x="1040" y="155" fill="#6b6b6b">done</text><text x="1170" y="155" fill="#6b6b6b">27</text>
+    <text x="834" y="181" fill="#b26b00">⊣</text><text x="856" y="181">auth_get_session</text><text x="1040" y="181" fill="#6b6b6b">dead end</text><text x="1170" y="181" fill="#6b6b6b">7</text>
+    <text x="800" y="219" fill="#cf222e">✕</text><text x="822" y="219">auth_invite_member</text><text x="1040" y="219" fill="#6b6b6b">wrong turn</text><text x="1170" y="219" fill="#6b6b6b">9</text>
+    <text x="800" y="261" fill="#8c8c8c">‖</text><text x="822" y="261">ask the person</text><text x="1040" y="261" fill="#6b6b6b">stalled</text><text x="1170" y="261" fill="#6b6b6b">5</text>
+  </g>
+</svg>
